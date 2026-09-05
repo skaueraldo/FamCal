@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+data/*.json
+.tools
+!.gitkeep
+public/assets
+public/index.html
+.vercel
