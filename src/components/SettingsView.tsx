@@ -1,7 +1,15 @@
 import { useApp } from "../state/AppState";
 
+function isStandalone() {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    ("standalone" in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone))
+  );
+}
+
 export function SettingsView() {
   const { theme, setTheme, language, setLanguage, t } = useApp();
+  const installed = isStandalone();
 
   return (
     <section className="main panel">
@@ -56,6 +64,11 @@ export function SettingsView() {
             <span>Norsk</span>
           </button>
         </div>
+
+        <h2 style={{ marginTop: 22 }}>{t("addToHomeScreen")}</h2>
+        <p className="lede" style={{ marginTop: 8 }}>
+          {installed ? t("runningAsApp") : t("addToHomeScreenLede")}
+        </p>
       </div>
     </section>
   );

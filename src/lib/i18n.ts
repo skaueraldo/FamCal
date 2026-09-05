@@ -158,6 +158,10 @@ const en = {
   language: "Language",
   english: "English",
   norwegian: "Norwegian",
+  addToHomeScreen: "Add to Home Screen",
+  addToHomeScreenLede:
+    "Install FamCal like an app. On iPhone, tap Share, then Add to Home Screen. On Android, open the browser menu and choose Add to Home screen or Install app.",
+  runningAsApp: "FamCal is running from your Home Screen.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -319,6 +323,10 @@ const no: Record<MessageKey, string> = {
   language: "Språk",
   english: "Engelsk",
   norwegian: "Norsk",
+  addToHomeScreen: "Legg til på Hjem-skjermen",
+  addToHomeScreenLede:
+    "Installer FamCal som en app. På iPhone: trykk Del, deretter Legg til på Hjem-skjerm. På Android: åpne nettlesermenyen og velg Legg til på startskjermen eller Installer app.",
+  runningAsApp: "FamCal kjører fra Hjem-skjermen.",
 };
 
 const dictionaries: Record<Lang, Record<MessageKey, string>> = { en, no };
