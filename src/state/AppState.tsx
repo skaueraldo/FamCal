@@ -85,7 +85,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.documentElement.dataset.theme = theme;
     document.documentElement.lang = language === "no" ? "nb" : "en";
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", theme === "dark" ? "#161310" : "#f4efe6");
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#161310" : "#f3eee4");
   }, [theme, language]);
 
   const setTheme = (next: Theme) => {

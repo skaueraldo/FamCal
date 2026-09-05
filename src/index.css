@@ -106,6 +106,7 @@ h3 {
 
 .app-root {
   min-height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .welcome {
