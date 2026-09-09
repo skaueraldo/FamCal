@@ -34,7 +34,7 @@ export function Welcome() {
         <form onSubmit={submit}>
           <label className="field">
             <span>{t("yourName")}</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Espen" required />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tobben" required />
           </label>
           {mode === "create" ? (
             <label className="field">

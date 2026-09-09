@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { addDays, formatDayShort, startOfWeek, toISODate, weekdayNames } from "../lib/dates";
 import { useApp } from "../state/AppState";
 import type { Dinner } from "../types";
+import { NotifyToggle } from "./NotifyToggle";
 
 type Draft = { title: string; notes: string };
 
@@ -126,6 +127,7 @@ export function DinnerView() {
           <div className="eyebrow">{t("dinnerEyebrow")}</div>
           <h1>{t("dinnerTitle")}</h1>
         </div>
+        <NotifyToggle channel="dinner" />
       </div>
 
       <p className="lede" style={{ margin: "0 0 4px" }}>

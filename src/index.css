@@ -292,6 +292,43 @@ h3 {
   gap: 8px;
 }
 
+.topbar-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.notify-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  background: var(--sheet);
+  border-radius: 14px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.notify-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--sage);
+}
+
+.notify-toggle.on {
+  color: var(--ink);
+  border-color: var(--sage);
+  background: color-mix(in srgb, var(--sage) 12%, var(--sheet));
+}
+
 .view-switch {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

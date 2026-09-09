@@ -6,6 +6,7 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import { calendarFetchUrls, GOOGLE_ICAL_HELP, looksLikeHtml, looksLikeIcs } from "./calendar-url.js";
 import { fetchSpondActivities } from "./spond.js";
+import { createFileStore, sanitizeGroup } from "./store.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
@@ -17,18 +18,13 @@ const PORT = Number(process.env.PORT) || 3847;
 
 if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
 
+const fileStore = createFileStore(dataDir, dataFile);
+
 /** @type {Record<string, object>} */
-let groups = {};
-if (existsSync(dataFile)) {
-  try {
-    groups = JSON.parse(readFileSync(dataFile, "utf8"));
-  } catch {
-    groups = {};
-  }
-}
+let groups = fileStore.read();
 
 function persist() {
-  writeFileSync(dataFile, JSON.stringify(groups, null, 2));
+  fileStore.write(groups);
 }
 
 /** @type {Record<string, { email: string, password: string }>} */
@@ -117,6 +113,17 @@ app.get("/api/groups/:code", (req, res) => {
   const group = groups[req.params.code.toUpperCase()];
   if (!group) return res.status(404).json({ error: "Group not found" });
   res.json(publicGroup(group));
+});
+
+app.post("/api/groups/restore", (req, res) => {
+  const incoming = sanitizeGroup(req.body?.group);
+  if (!incoming) return res.status(400).json({ error: "Could not restore that group" });
+  const existing = groups[incoming.code];
+  if (!existing || Number(incoming.updatedAt) >= Number(existing.updatedAt || 0)) {
+    groups[incoming.code] = incoming;
+    persist();
+  }
+  res.json(publicGroup(groups[incoming.code]));
 });
 
 app.post("/api/spond/import", async (req, res) => {

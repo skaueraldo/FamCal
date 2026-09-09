@@ -2,6 +2,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { uid } from "../lib/id";
 import { useApp } from "../state/AppState";
+import { NotifyToggle } from "./NotifyToggle";
 
 export function WishlistView() {
   const { group, session, t, upsertWishlist, deleteWishlist } = useApp();
@@ -50,6 +51,7 @@ export function WishlistView() {
           <div className="eyebrow">{t("wishlistEyebrow")}</div>
           <h1>{t("wishlistTitle")}</h1>
         </div>
+        <NotifyToggle channel="wishlist" />
       </div>
 
       <div className="card">
