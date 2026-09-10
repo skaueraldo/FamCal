@@ -97,6 +97,11 @@ const en = {
   shareCodeLede: "Share this code so someone can join the same calendar and shopping list.",
   copyCode: "Copy code",
   you: " (you)",
+  administrator: "Administrator",
+  makeAdmin: "Make admin",
+  kickMember: "Remove",
+  kickConfirm: "Remove {name} from this group?",
+  kickedFromGroup: "You were removed from this group.",
   renameGroup: "Rename group",
   calendarSources: "Calendar sources",
   calendarSourcesLede:
@@ -278,6 +283,11 @@ const no: Record<MessageKey, string> = {
   shareCodeLede: "Del denne koden så noen kan bli med i samme kalender og handleliste.",
   copyCode: "Kopier kode",
   you: " (deg)",
+  administrator: "Administrator",
+  makeAdmin: "Gjør til admin",
+  kickMember: "Fjern",
+  kickConfirm: "Fjerne {name} fra gruppen?",
+  kickedFromGroup: "Du ble fjernet fra denne gruppen.",
   renameGroup: "Gi gruppen nytt navn",
   calendarSources: "Kalenderkilder",
   calendarSourcesLede:
@@ -388,6 +398,7 @@ export function mapKnownError(lang: Lang, message: string): string {
     "Could not create a group": "couldNotCreateGroup",
     "Wrong email or password.": "wrongEmailOrPassword",
     "Spond is not connected on this computer. Sign in again.": "spondNotConnected",
+    "You were removed from this group.": "kickedFromGroup",
     "That Google link is not a live calendar feed. In Google Calendar: Settings → the calendar → Integrate calendar → copy the secret address in iCal format (it ends with basic.ics).":
       "googleIcalHelp",
     "That link did not return a calendar file.": "notACalendarFile",

@@ -32,6 +32,8 @@ interface AppContextValue {
   startGroup: (name: string, groupName: string) => Promise<void>;
   joinGroup: (name: string, code: string) => Promise<void>;
   leaveGroup: () => void;
+  kickMember: (id: string) => void;
+  makeAdmin: (id: string) => void;
   renameGroup: (name: string) => void;
   upsertEvent: (event: CalEvent) => void;
   deleteEvent: (id: string) => void;
@@ -53,7 +55,8 @@ const AppContext = createContext<AppContextValue | null>(null);
 const emptyGroup = (code: string, name: string, profile: Profile): Group => ({
   code,
   name,
-  members: [profile],
+  members: [{ ...profile, admin: true }],
+  kickedIds: [],
   events: [],
   items: [],
   dinners: [],
@@ -77,8 +80,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const sync = useRef(new SyncClient());
 
   const applyGroup = useCallback((next: Group) => {
+    const members = (next.members ?? []).map((member) => ({ ...member, admin: Boolean(member.admin) }));
+    if (members.length && !members.some((member) => member.admin)) members[0].admin = true;
     setGroup({
       ...next,
+      members,
+      kickedIds: next.kickedIds ?? [],
       dinners: next.dinners ?? [],
       wishlists: next.wishlists ?? [],
     });
@@ -119,9 +126,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const client = sync.current;
     const offState = client.subscribe(applyGroup);
     const offStatus = client.onStatus(setStatus);
+    const offKicked = client.onKicked(() => {
+      const code = loadSession()?.groupCode;
+      client.disconnect();
+      clearSession();
+      if (code) clearGroupCache(code);
+      setSession(null);
+      setGroup(null);
+      setTab("calendar");
+      setError("You were removed from this group.");
+    });
     return () => {
       offState();
       offStatus();
+      offKicked();
       client.disconnect();
     };
   }, [applyGroup]);
@@ -175,8 +193,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [session, applyGroup]);
 
   useEffect(() => {
-    if (group) saveGroupCache(group);
-  }, [group]);
+    if (!session || !group) return;
+    if (group.kickedIds?.includes(session.profile.id)) {
+      sync.current.disconnect();
+      clearSession();
+      clearGroupCache(session.groupCode);
+      setSession(null);
+      setGroup(null);
+      setTab("calendar");
+      setError("You were removed from this group.");
+    }
+  }, [group, session]);
+
+  useEffect(() => {
+    if (!group) return;
+    if (session && group.kickedIds?.includes(session.profile.id)) return;
+    saveGroupCache(group);
+  }, [group, session]);
 
   const persistSession = (next: Session) => {
     setSession(next);
@@ -186,6 +219,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const startGroup = async (name: string, groupName: string) => {
     const profile: Profile = { id: uid("mem"), name: name.trim(), color: colorFor(0) };
     const created = await createGroup(groupName.trim() || "Family", profile);
+    setError(null);
     applyGroup(created);
     saveGroupCache(created);
     persistSession({ profile, groupCode: created.code });
@@ -200,11 +234,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
     const next = {
       ...remote,
-      members: [...remote.members, profile],
+      members: [...remote.members, { ...profile, admin: false }],
       dinners: remote.dinners ?? [],
       wishlists: remote.wishlists ?? [],
+      kickedIds: remote.kickedIds ?? [],
       updatedAt: Date.now(),
     };
+    setError(null);
     applyGroup(next);
     saveGroupCache(next);
     persistSession({ profile, groupCode: remote.code });
@@ -232,6 +268,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const renameGroup = (name: string) => {
     patch((g) => ({ ...g, name }), { type: "group:rename", name });
+  };
+
+  const kickMember = (id: string) => {
+    patch(
+      (g) => ({
+        ...g,
+        members: g.members.filter((member) => member.id !== id),
+        kickedIds: [...new Set([...(g.kickedIds ?? []), id])],
+      }),
+      { type: "member:kick", id },
+    );
+  };
+
+  const makeAdmin = (id: string) => {
+    patch(
+      (g) => ({
+        ...g,
+        members: g.members.map((member) => (member.id === id ? { ...member, admin: true } : member)),
+      }),
+      { type: "member:admin", id },
+    );
   };
 
   const upsertEvent = (event: CalEvent) => {
@@ -410,6 +467,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         startGroup,
         joinGroup,
         leaveGroup,
+        kickMember,
+        makeAdmin,
         renameGroup,
         upsertEvent,
         deleteEvent,

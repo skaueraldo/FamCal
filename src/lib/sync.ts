@@ -12,8 +12,8 @@ export class SyncClient {
   private retry = 0;
   private timer: number | null = null;
   private closed = false;
-
   private queue: string[] = [];
+  private kickedListeners = new Set<() => void>();
 
   connect(code: string, member: Member) {
     this.closed = false;
@@ -37,6 +37,11 @@ export class SyncClient {
   onStatus(fn: StatusListener) {
     this.statusListeners.add(fn);
     return () => this.statusListeners.delete(fn);
+  }
+
+  onKicked(fn: () => void) {
+    this.kickedListeners.add(fn);
+    return () => this.kickedListeners.delete(fn);
   }
 
   send(payload: Record<string, unknown>) {
@@ -71,6 +76,12 @@ export class SyncClient {
     ws.onmessage = (ev) => {
       try {
         const msg = JSON.parse(String(ev.data)) as { type: string; group?: Group };
+        if (msg.type === "kicked") {
+          this.closed = true;
+          for (const fn of this.kickedListeners) fn();
+          this.ws?.close();
+          return;
+        }
         if (msg.type === "state" && msg.group) {
           for (const fn of this.listeners) fn(msg.group);
         }

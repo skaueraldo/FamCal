@@ -4,6 +4,7 @@ export interface Member {
   id: string;
   name: string;
   color: string;
+  admin?: boolean;
 }
 
 export interface CalEvent {
@@ -65,6 +66,7 @@ export interface Group {
   code: string;
   name: string;
   members: Member[];
+  kickedIds?: string[];
   events: CalEvent[];
   items: ShopItem[];
   dinners: Dinner[];
