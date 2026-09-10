@@ -50,7 +50,7 @@ export function Welcome() {
               <span>{t("inviteCode")}</span>
               <input
                 value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))}
                 placeholder="AB12CD"
                 maxLength={6}
                 required

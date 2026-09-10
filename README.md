@@ -25,7 +25,7 @@ Open [http://localhost:5173](http://localhost:5173). Create a group, then join t
 
 ## Deploy
 
-The app is set up for [Vercel](https://vercel.com) (Express + WebSocket on Fluid compute). Group data on Vercel is stored in the function’s temporary filesystem, so it can reset when instances recycle. For a lasting household deploy, keep using this machine or add a database later.
+The app is set up for [Vercel](https://vercel.com) (Express + WebSocket on Fluid compute). Group data is stored in a private Vercel Blob store so invite codes survive deploys.
 
 ## Import from iPhone Calendar
 

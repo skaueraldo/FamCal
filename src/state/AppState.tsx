@@ -226,7 +226,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const joinGroup = async (name: string, code: string) => {
-    const remote = await fetchGroup(code.trim().toUpperCase());
+    const remote = await fetchGroup(code);
     const profile: Profile = {
       id: uid("mem"),
       name: name.trim(),
