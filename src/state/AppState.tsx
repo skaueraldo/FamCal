@@ -10,8 +10,8 @@ import {
 import { colorFor, uid } from "../lib/id";
 import { parseIcs, sourceNameFromIcs } from "../lib/ics";
 import { mapKnownError, t as translate, type Lang, type MessageKey, type Theme } from "../lib/i18n";
-import { clearSession, loadPrefs, loadSession, savePrefs, saveSession } from "../lib/storage";
-import { SyncClient, createGroup, fetchGroup, fetchIcsUrl, importSpondAccount, refreshSpondAccount } from "../lib/sync";
+import { clearGroupCache, clearSession, emptyNotify, loadGroupCache, loadPrefs, loadSession, saveGroupCache, savePrefs, saveSession, type NotifyChannel, type NotifyPrefs } from "../lib/storage";
+import { SyncClient, createGroup, fetchGroup, fetchIcsUrl, importSpondAccount, refreshSpondAccount, restoreGroup } from "../lib/sync";
 import type { CalEvent, Dinner, Group, Profile, Session, ShopItem, Source, Tab, Wishlist } from "../types";
 
 interface AppContextValue {
@@ -21,6 +21,8 @@ interface AppContextValue {
   setTheme: (theme: Theme) => void;
   language: Lang;
   setLanguage: (language: Lang) => void;
+  notify: NotifyPrefs;
+  setNotify: (channel: NotifyChannel, on: boolean) => void;
   t: (key: MessageKey, vars?: Record<string, string | number>) => string;
   localizeError: (message: string) => string;
   session: Session | null;
@@ -65,6 +67,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [prefs, setPrefs] = useState(() => loadPrefs());
   const theme = prefs.theme;
   const language = prefs.language;
+  const notify = prefs.notify;
   const t = (key: MessageKey, vars?: Record<string, string | number>) => translate(language, key, vars);
   const localizeError = (message: string) => mapKnownError(language, message);
   const [session, setSession] = useState<Session | null>(() => loadSession());
@@ -104,6 +107,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const setNotify = (channel: NotifyChannel, on: boolean) => {
+    setPrefs((current) => {
+      const prefsNext = { ...current, notify: { ...emptyNotify(), ...current.notify, [channel]: on } };
+      savePrefs(prefsNext);
+      return prefsNext;
+    });
+  };
+
   useEffect(() => {
     const client = sync.current;
     const offState = client.subscribe(applyGroup);
@@ -119,26 +130,53 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!session) return;
     let cancelled = false;
     setError(null);
-    fetchGroup(session.groupCode)
-      .then((remote) => {
+    const cached = loadGroupCache(session.groupCode);
+    if (cached) {
+      applyGroup(cached);
+    }
+
+    const hydrate = async () => {
+      try {
+        const remote = await fetchGroup(session.groupCode);
         if (cancelled) return;
-        setGroup({
-          ...remote,
-          dinners: remote.dinners ?? [],
-          wishlists: remote.wishlists ?? [],
-        });
+        if (cached && cached.updatedAt > (remote.updatedAt || 0)) {
+          const restored = await restoreGroup(cached);
+          if (cancelled) return;
+          applyGroup(restored);
+        } else {
+          applyGroup(remote);
+        }
         sync.current.connect(session.groupCode, session.profile);
-      })
-      .catch((err: Error) => {
+      } catch (err: unknown) {
         if (cancelled) return;
-        setError(err.message);
+        if (cached) {
+          try {
+            const restored = await restoreGroup(cached);
+            if (cancelled) return;
+            applyGroup(restored);
+            sync.current.connect(session.groupCode, session.profile);
+            return;
+          } catch {
+            applyGroup(cached);
+            sync.current.connect(session.groupCode, session.profile);
+            return;
+          }
+        }
+        setError(err instanceof Error ? err.message : "That group code was not found");
         setGroup(emptyGroup(session.groupCode, "Family", session.profile));
-      });
+      }
+    };
+
+    void hydrate();
     return () => {
       cancelled = true;
       sync.current.disconnect();
     };
-  }, [session]);
+  }, [session, applyGroup]);
+
+  useEffect(() => {
+    if (group) saveGroupCache(group);
+  }, [group]);
 
   const persistSession = (next: Session) => {
     setSession(next);
@@ -148,7 +186,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const startGroup = async (name: string, groupName: string) => {
     const profile: Profile = { id: uid("mem"), name: name.trim(), color: colorFor(0) };
     const created = await createGroup(groupName.trim() || "Family", profile);
-    setGroup(created);
+    applyGroup(created);
+    saveGroupCache(created);
     persistSession({ profile, groupCode: created.code });
   };
 
@@ -159,18 +198,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       name: name.trim(),
       color: colorFor(remote.members.length),
     };
-    setGroup({
+    const next = {
       ...remote,
       members: [...remote.members, profile],
       dinners: remote.dinners ?? [],
       wishlists: remote.wishlists ?? [],
-    });
+      updatedAt: Date.now(),
+    };
+    applyGroup(next);
+    saveGroupCache(next);
     persistSession({ profile, groupCode: remote.code });
   };
 
   const leaveGroup = () => {
+    const code = session?.groupCode;
     sync.current.disconnect();
     clearSession();
+    if (code) clearGroupCache(code);
     setSession(null);
     setGroup(null);
     setTab("calendar");
@@ -179,8 +223,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const patch = (updater: (current: Group) => Group, message?: Record<string, unknown>) => {
     setGroup((current) => {
       if (!current) return current;
-      const next = updater(current);
+      const next = { ...updater(current), updatedAt: Date.now() };
       if (message) sync.current.send(message);
+      saveGroupCache(next);
       return next;
     });
   };
@@ -354,6 +399,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setTheme,
         language,
         setLanguage,
+        notify,
+        setNotify,
         t,
         localizeError,
         session,

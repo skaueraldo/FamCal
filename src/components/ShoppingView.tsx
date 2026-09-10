@@ -2,6 +2,7 @@ import { Check, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import { useApp } from "../state/AppState";
 import { uid } from "../lib/id";
+import { NotifyToggle } from "./NotifyToggle";
 
 export function ShoppingView() {
   const { group, session, upsertItem, deleteItem, t } = useApp();
@@ -37,6 +38,7 @@ export function ShoppingView() {
           <div className="eyebrow">{t("shoppingEyebrow")}</div>
           <h1>{t("shoppingTitle")}</h1>
         </div>
+        <NotifyToggle channel="shopping" />
       </div>
 
       <div className="card">

@@ -13,6 +13,8 @@ export class SyncClient {
   private timer: number | null = null;
   private closed = false;
 
+  private queue: string[] = [];
+
   connect(code: string, member: Member) {
     this.closed = false;
     this.code = code;
@@ -38,9 +40,13 @@ export class SyncClient {
   }
 
   send(payload: Record<string, unknown>) {
+    const raw = JSON.stringify(payload);
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(payload));
+      this.ws.send(raw);
+      return;
     }
+    this.queue.push(raw);
+    if (this.queue.length > 200) this.queue.shift();
   }
 
   private setStatus(status: "connecting" | "live" | "offline") {
@@ -56,7 +62,10 @@ export class SyncClient {
     ws.onopen = () => {
       this.retry = 0;
       this.setStatus("live");
-      if (this.member) this.send({ type: "hello", member: this.member });
+      if (this.member) this.ws?.send(JSON.stringify({ type: "hello", member: this.member }));
+      while (this.queue.length && this.ws?.readyState === WebSocket.OPEN) {
+        this.ws.send(this.queue.shift()!);
+      }
     };
 
     ws.onmessage = (ev) => {
@@ -93,6 +102,16 @@ export async function createGroup(name: string, member: Member): Promise<Group> 
 export async function fetchGroup(code: string): Promise<Group> {
   const res = await fetch(`/api/groups/${encodeURIComponent(code)}`);
   if (!res.ok) throw new Error("That group code was not found");
+  return res.json() as Promise<Group>;
+}
+
+export async function restoreGroup(group: Group): Promise<Group> {
+  const res = await fetch("/api/groups/restore", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ group }),
+  });
+  if (!res.ok) throw new Error("Could not restore that group");
   return res.json() as Promise<Group>;
 }
 

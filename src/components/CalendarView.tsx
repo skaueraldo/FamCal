@@ -18,6 +18,7 @@ import {
 import { useApp } from "../state/AppState";
 import type { CalEvent } from "../types";
 import { DayAgenda } from "./DayAgenda";
+import { NotifyToggle } from "./NotifyToggle";
 
 type CalView = "day" | "tomorrow" | "week" | "month";
 
@@ -27,7 +28,7 @@ export function CalendarView() {
   const now = new Date();
   const todayIso = toISODate(now);
   const tomorrowIso = toISODate(addDays(now, 1));
-  const [view, setView] = useState<CalView>("month");
+  const [view, setView] = useState<CalView>("day");
   const [focus, setFocus] = useState(todayIso);
   const [cursor, setCursor] = useState({ year: now.getFullYear(), month: now.getMonth() });
   const { group, language, t } = useApp();
@@ -119,16 +120,19 @@ export function CalendarView() {
           <div className="eyebrow">{eyebrow}</div>
           <h1>{heading}</h1>
         </div>
-        <div className="month-nav">
-          <button className="icon-btn" aria-label={prevLabel} onClick={() => step(-1)}>
-            <ChevronLeft size={18} />
-          </button>
-          <button className="btn secondary" onClick={goToday}>
-            {t("today")}
-          </button>
-          <button className="icon-btn" aria-label={nextLabel} onClick={() => step(1)}>
-            <ChevronRight size={18} />
-          </button>
+        <div className="topbar-tools">
+          <div className="month-nav">
+            <button className="icon-btn" aria-label={prevLabel} onClick={() => step(-1)}>
+              <ChevronLeft size={18} />
+            </button>
+            <button className="btn secondary" onClick={goToday}>
+              {t("today")}
+            </button>
+            <button className="icon-btn" aria-label={nextLabel} onClick={() => step(1)}>
+              <ChevronRight size={18} />
+            </button>
+          </div>
+          <NotifyToggle channel="calendar" />
         </div>
       </div>
 
