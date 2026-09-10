@@ -281,9 +281,24 @@ app.get("/api/import", async (req, res) => {
 });
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(join(root, "dist")));
+  const dist = join(root, "dist");
+  app.use(
+    express.static(dist, {
+      setHeaders(res, filePath) {
+        const name = filePath.replaceAll("\\", "/");
+        if (name.endsWith("/sw.js") || name.endsWith(".webmanifest") || name.endsWith(".html")) {
+          res.setHeader("Cache-Control", "no-cache");
+          return;
+        }
+        if (name.includes("/assets/")) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
+    }),
+  );
   app.get(/.*/, (_req, res) => {
-    res.sendFile(join(root, "dist", "index.html"));
+    res.setHeader("Cache-Control", "no-cache");
+    res.sendFile(join(dist, "index.html"));
   });
 }
 

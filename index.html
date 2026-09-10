@@ -12,6 +12,23 @@
     <meta name="apple-mobile-web-app-title" content="FamCal" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>FamCal</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        min-height: 100vh;
+        background: #f3eee4;
+      }
+      html[data-theme="dark"],
+      html[data-theme="dark"] body {
+        background: #161310;
+      }
+      #root {
+        min-height: 100%;
+        min-height: 100vh;
+      }
+    </style>
     <script>
       try {
         var prefs = JSON.parse(localStorage.getItem("famcal.prefs") || "{}");
@@ -25,12 +42,27 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Outfit:wght@400;500;600&display=swap"
       rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Outfit:wght@400;500;600&display=swap"
+      media="print"
+      onload="this.media='all'"
     />
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      window.addEventListener("DOMContentLoaded", function () {
+        setTimeout(function () {
+          if (document.documentElement.dataset.booted) return;
+          var root = document.getElementById("root");
+          if (!root || root.childElementCount) return;
+          root.innerHTML =
+            '<div style="min-height:100vh;display:grid;place-items:center;font-family:system-ui,sans-serif;padding:24px;text-align:center;color:#1c1915"><p>FamCal did not load.</p><p><a href="./?t=' +
+            Date.now() +
+            '">Try again</a></p></div>';
+        }, 8000);
+      });
+    </script>
   </body>
 </html>
