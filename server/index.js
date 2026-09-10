@@ -6,7 +6,7 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import { calendarFetchUrls, GOOGLE_ICAL_HELP, looksLikeHtml, looksLikeIcs } from "./calendar-url.js";
 import { fetchSpondActivities } from "./spond.js";
-import { createFileStore, ensureGroupRoles, sanitizeGroup } from "./store.js";
+import { createDurableStore, createFileStore, ensureGroupRoles, mergeGroups, sanitizeGroup } from "./store.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
@@ -19,16 +19,31 @@ const PORT = Number(process.env.PORT) || 3847;
 if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
 
 const fileStore = createFileStore(dataDir, dataFile);
+const store = onVercel ? createDurableStore(fileStore) : fileStore;
 
 /** @type {Record<string, object>} */
-let groups = fileStore.read();
-for (const group of Object.values(groups)) ensureGroupRoles(group);
+let groups = {};
 
-function persist() {
-  fileStore.write(groups);
+async function hydrate() {
+  const stored = await store.read();
+  groups = mergeGroups(groups, stored);
+  for (const group of Object.values(groups)) ensureGroupRoles(group);
 }
 
-persist();
+let persistQueue = Promise.resolve();
+function persist() {
+  persistQueue = persistQueue
+    .then(async () => {
+      const stored = await store.read();
+      groups = mergeGroups(groups, stored);
+      for (const group of Object.values(groups)) ensureGroupRoles(group);
+      await store.write(groups);
+    })
+    .catch((error) => {
+      console.error("FamCal persist failed:", error);
+    });
+  return persistQueue;
+}
 
 /** @type {Record<string, { email: string, password: string }>} */
 let secrets = {};
@@ -123,23 +138,31 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/groups", (req, res) => {
+app.post("/api/groups", async (req, res) => {
+  await hydrate();
   const name = String(req.body?.name || "Family").trim().slice(0, 60);
   const member = req.body?.member;
   let code = makeCode();
   while (groups[code]) code = makeCode();
   groups[code] = emptyGroup(code, name, member);
-  persist();
+  await persist();
   res.json(publicGroup(groups[code]));
 });
 
-app.get("/api/groups/:code", (req, res) => {
-  const group = groups[req.params.code.toUpperCase()];
+app.get("/api/groups/:code", async (req, res) => {
+  await hydrate();
+  const code = String(req.params.code || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 6);
+  const group = groups[code];
   if (!group) return res.status(404).json({ error: "Group not found" });
   res.json(publicGroup(group));
 });
 
-app.post("/api/groups/restore", (req, res) => {
+app.post("/api/groups/restore", async (req, res) => {
+  await hydrate();
   const incoming = sanitizeGroup(req.body?.group);
   if (!incoming) return res.status(400).json({ error: "Could not restore that group" });
   const existing = groups[incoming.code];
@@ -153,7 +176,7 @@ app.post("/api/groups/restore", (req, res) => {
   }
   if (!existing || Number(incoming.updatedAt) >= Number(existing.updatedAt || 0)) {
     groups[incoming.code] = incoming;
-    persist();
+    await persist();
   }
   res.json(publicGroup(groups[incoming.code]));
 });
@@ -258,18 +281,40 @@ app.get("/api/import", async (req, res) => {
 });
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(join(root, "dist")));
+  const dist = join(root, "dist");
+  app.use(
+    express.static(dist, {
+      setHeaders(res, filePath) {
+        const name = filePath.replaceAll("\\", "/");
+        if (name.endsWith("/sw.js") || name.endsWith(".webmanifest") || name.endsWith(".html")) {
+          res.setHeader("Cache-Control", "no-cache");
+          return;
+        }
+        if (name.includes("/assets/")) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
+    }),
+  );
   app.get(/.*/, (_req, res) => {
-    res.sendFile(join(root, "dist", "index.html"));
+    res.setHeader("Cache-Control", "no-cache");
+    res.sendFile(join(dist, "index.html"));
   });
 }
 
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: "/ws" });
 
-wss.on("connection", (ws, req) => {
+wss.on("connection", async (ws, req) => {
   const url = new URL(req.url || "", "http://localhost");
   const code = String(url.searchParams.get("code") || "").toUpperCase();
+  try {
+    await hydrate();
+  } catch {
+    send(ws, { type: "error", error: "Group not found" });
+    ws.close();
+    return;
+  }
   if (!code || !groups[code]) {
     send(ws, { type: "error", error: "Group not found" });
     ws.close();
@@ -405,7 +450,9 @@ function makeCode() {
 export default server;
 
 if (!onVercel) {
-  server.listen(PORT, "0.0.0.0", () => {
-    console.log(`FamCal sync on http://127.0.0.1:${PORT}`);
+  hydrate().then(() => {
+    server.listen(PORT, "0.0.0.0", () => {
+      console.log(`FamCal sync on http://127.0.0.1:${PORT}`);
+    });
   });
 }

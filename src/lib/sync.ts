@@ -111,7 +111,8 @@ export async function createGroup(name: string, member: Member): Promise<Group> 
 }
 
 export async function fetchGroup(code: string): Promise<Group> {
-  const res = await fetch(`/api/groups/${encodeURIComponent(code)}`);
+  const normalized = code.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+  const res = await fetch(`/api/groups/${encodeURIComponent(normalized)}`);
   if (!res.ok) throw new Error("That group code was not found");
   return res.json() as Promise<Group>;
 }

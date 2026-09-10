@@ -9,3 +9,4 @@ data/*.json
 public/assets
 public/index.html
 .vercel
+.env*
