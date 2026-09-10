@@ -103,7 +103,7 @@ export function CalendarView() {
 
   const eyebrow =
     view === "month"
-      ? t("householdMonth")
+      ? group?.name || t("householdMonth")
       : view === "week"
         ? t("weekRange", {
             start: formatDayShort(weekDays[0]?.iso ?? focus, language),

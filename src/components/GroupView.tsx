@@ -1,17 +1,20 @@
 import { Copy, RefreshCw, Upload } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { formatWhen } from "../lib/dates";
 import { initials } from "../lib/id";
 import { useApp } from "../state/AppState";
+import { GroupAccessForm } from "./GroupAccessForm";
 
 export function GroupView() {
   const {
     group,
     session,
+    memberships,
     status,
     error,
     renameGroup,
     leaveGroup,
+    switchGroup,
     kickMember,
     makeAdmin,
     importIcsText,
@@ -24,12 +27,21 @@ export function GroupView() {
     localizeError,
   } = useApp();
   const [groupName, setGroupName] = useState(group?.name ?? "");
+  const [adding, setAdding] = useState(false);
   const [url, setUrl] = useState("");
   const [spondEmail, setSpondEmail] = useState("");
   const [spondPassword, setSpondPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [spondBusy, setSpondBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setGroupName(group?.name ?? "");
+  }, [group?.code, group?.name]);
+
+  useEffect(() => {
+    setAdding(false);
+  }, [group?.code]);
 
   const importedMessage = (count: number) =>
     count === 0
@@ -122,6 +134,42 @@ export function GroupView() {
       </div>
 
       <div className="card">
+        <h2>{t("yourGroups")}</h2>
+        <p className="lede" style={{ marginTop: 8 }}>
+          {t("yourGroupsLede")}
+        </p>
+        <div className="group-switch-list">
+          {memberships.map((membership) => {
+            const active = membership.groupCode === session?.groupCode;
+            return (
+              <div className={`group-switch-row${active ? " active" : ""}`} key={membership.groupCode}>
+                <div>
+                  <strong>{membership.groupName || membership.groupCode}</strong>
+                  <div className="meta">
+                    {membership.groupCode}
+                    {` · ${t("signedInAs", { name: membership.profile.name })}`}
+                    {active ? ` · ${t("activeGroup")}` : ""}
+                  </div>
+                </div>
+                {active ? null : (
+                  <button type="button" className="btn secondary" onClick={() => switchGroup(membership.groupCode)}>
+                    {t("openGroup")}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {adding ? (
+          <GroupAccessForm defaultName={session?.profile.name ?? ""} defaultMode="join" onCancel={() => setAdding(false)} />
+        ) : (
+          <button type="button" className="btn secondary" onClick={() => setAdding(true)}>
+            {t("addAnotherGroup")}
+          </button>
+        )}
+      </div>
+
+      <div className="card">
         <h2>{group?.name}</h2>
         <p className="lede" style={{ marginTop: 8 }}>
           {t("shareCodeLede")}
@@ -172,9 +220,13 @@ export function GroupView() {
         <label className="field">
           <span>{t("renameGroup")}</span>
           <input
+            key={group?.code}
             value={groupName}
             onChange={(e) => setGroupName(e.target.value)}
-            onBlur={() => groupName.trim() && renameGroup(groupName.trim())}
+            onBlur={() => {
+              const next = groupName.trim();
+              if (next && next !== group?.name) renameGroup(next);
+            }}
           />
         </label>
         {error ? <p className="error">{localizeError(error)}</p> : null}
@@ -294,7 +346,7 @@ export function GroupView() {
 
       <div className="row">
         <button className="btn secondary" onClick={leaveGroup}>
-          {t("leaveGroup")}
+          {memberships.length > 1 ? t("leaveThisGroup") : t("leaveGroup")}
         </button>
       </div>
     </section>

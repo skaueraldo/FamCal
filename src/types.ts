@@ -85,3 +85,14 @@ export interface Session {
   profile: Profile;
   groupCode: string;
 }
+
+export interface Membership {
+  groupCode: string;
+  groupName?: string;
+  profile: Profile;
+}
+
+export interface Account {
+  activeCode: string;
+  memberships: Membership[];
+}

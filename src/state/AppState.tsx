@@ -3,16 +3,18 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
 import { colorFor, uid } from "../lib/id";
+import { memberByName, normalizeCode, reconcileProfile } from "../lib/identity";
 import { parseIcs, sourceNameFromIcs } from "../lib/ics";
 import { mapKnownError, t as translate, type Lang, type MessageKey, type Theme } from "../lib/i18n";
-import { clearGroupCache, clearSession, emptyNotify, loadGroupCache, loadPrefs, loadSession, saveGroupCache, savePrefs, saveSession, type NotifyChannel, type NotifyPrefs } from "../lib/storage";
+import { clearGroupCache, clearSession, emptyNotify, loadAccount, loadGroupCache, loadPrefs, saveAccount, saveGroupCache, savePrefs, type NotifyChannel, type NotifyPrefs } from "../lib/storage";
 import { SyncClient, createGroup, fetchGroup, fetchIcsUrl, importSpondAccount, refreshSpondAccount, restoreGroup } from "../lib/sync";
-import type { CalEvent, Dinner, Group, Profile, Session, ShopItem, Source, Tab, Wishlist } from "../types";
+import type { Account, CalEvent, Dinner, Group, Membership, Profile, Session, ShopItem, Source, Tab, Wishlist } from "../types";
 
 interface AppContextValue {
   tab: Tab;
@@ -26,11 +28,13 @@ interface AppContextValue {
   t: (key: MessageKey, vars?: Record<string, string | number>) => string;
   localizeError: (message: string) => string;
   session: Session | null;
+  memberships: Membership[];
   group: Group | null;
   status: "connecting" | "live" | "offline";
   error: string | null;
   startGroup: (name: string, groupName: string) => Promise<void>;
   joinGroup: (name: string, code: string) => Promise<void>;
+  switchGroup: (code: string) => void;
   leaveGroup: () => void;
   kickMember: (id: string) => void;
   makeAdmin: (id: string) => void;
@@ -48,6 +52,13 @@ interface AppContextValue {
   importSpond: (email: string, password: string) => Promise<number>;
   deleteSource: (id: string) => void;
   refreshSource: (source: Source) => Promise<number>;
+}
+
+function activeSession(account: Account | null): Session | null {
+  if (!account?.memberships.length) return null;
+  const active =
+    account.memberships.find((item) => item.groupCode === account.activeCode) ?? account.memberships[0];
+  return { profile: active.profile, groupCode: active.groupCode };
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -73,11 +84,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const notify = prefs.notify;
   const t = (key: MessageKey, vars?: Record<string, string | number>) => translate(language, key, vars);
   const localizeError = (message: string) => mapKnownError(language, message);
-  const [session, setSession] = useState<Session | null>(() => loadSession());
+  const [account, setAccount] = useState<Account | null>(() => loadAccount());
   const [group, setGroup] = useState<Group | null>(null);
   const [status, setStatus] = useState<"connecting" | "live" | "offline">("offline");
   const [error, setError] = useState<string | null>(null);
   const sync = useRef(new SyncClient());
+  const accountRef = useRef(account);
+  accountRef.current = account;
+
+  const session = useMemo(() => activeSession(account), [account]);
+  const memberships = account?.memberships ?? [];
 
   const applyGroup = useCallback((next: Group) => {
     const members = (next.members ?? []).map((member) => ({ ...member, admin: Boolean(member.admin) }));
@@ -127,14 +143,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const offState = client.subscribe(applyGroup);
     const offStatus = client.onStatus(setStatus);
     const offKicked = client.onKicked(() => {
-      const code = loadSession()?.groupCode;
+      const current = accountRef.current;
+      const code = current?.activeCode;
       client.disconnect();
-      clearSession();
-      if (code) clearGroupCache(code);
-      setSession(null);
-      setGroup(null);
-      setTab("calendar");
-      setError("You were removed from this group.");
+      dropMembership(code, "You were removed from this group.");
     });
     return () => {
       offState();
@@ -147,7 +159,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!session) return;
     let cancelled = false;
-    setError(null);
     const cached = loadGroupCache(session.groupCode);
     if (cached) {
       applyGroup(cached);
@@ -164,6 +175,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } else {
           applyGroup(remote);
         }
+        setError(null);
         sync.current.connect(session.groupCode, session.profile);
       } catch (err: unknown) {
         if (cancelled) return;
@@ -190,18 +202,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       sync.current.disconnect();
     };
-  }, [session, applyGroup]);
+  }, [session?.groupCode, session?.profile.id, applyGroup]);
 
   useEffect(() => {
-    if (!session || !group) return;
+    if (!session || !group || group.code !== session.groupCode) return;
     if (group.kickedIds?.includes(session.profile.id)) {
       sync.current.disconnect();
-      clearSession();
-      clearGroupCache(session.groupCode);
-      setSession(null);
-      setGroup(null);
-      setTab("calendar");
-      setError("You were removed from this group.");
+      dropMembership(session.groupCode, "You were removed from this group.");
     }
   }, [group, session]);
 
@@ -209,51 +216,134 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!group) return;
     if (session && group.kickedIds?.includes(session.profile.id)) return;
     saveGroupCache(group);
+    const current = accountRef.current;
+    if (!current) return;
+    const idx = current.memberships.findIndex((item) => item.groupCode === group.code);
+    if (idx < 0) return;
+    const membership = current.memberships[idx];
+    const profile = reconcileProfile(membership.profile, group);
+    if (membership.groupName === group.name && membership.profile.id === profile.id && membership.profile.name === profile.name && membership.profile.color === profile.color) {
+      return;
+    }
+    persistAccount({
+      ...current,
+      memberships: current.memberships.map((item, index) =>
+        index === idx ? { ...item, groupName: group.name, profile } : item,
+      ),
+    });
   }, [group, session]);
 
-  const persistSession = (next: Session) => {
-    setSession(next);
-    saveSession(next);
+  const persistAccount = (next: Account | null) => {
+    if (!next?.memberships.length) {
+      clearSession();
+      setAccount(null);
+      return;
+    }
+    const memberships = next.memberships.map((item) => ({
+      ...item,
+      groupCode: normalizeCode(item.groupCode),
+    }));
+    const active =
+      memberships.find((item) => item.groupCode === normalizeCode(next.activeCode)) ?? memberships[0];
+    const stored: Account = { activeCode: active.groupCode, memberships };
+    setAccount(stored);
+    saveAccount(stored);
+    accountRef.current = stored;
+  };
+
+  const dropMembership = (code: string | undefined, message?: string) => {
+    const current = accountRef.current;
+    if (!code || !current) {
+      persistAccount(null);
+      setGroup(null);
+      setTab("calendar");
+      if (message) setError(message);
+      return;
+    }
+    const normalized = normalizeCode(code);
+    clearGroupCache(normalized);
+    const remaining = current.memberships.filter((item) => item.groupCode !== normalized);
+    if (!remaining.length) {
+      persistAccount(null);
+      setGroup(null);
+      setTab("calendar");
+      if (message) setError(message);
+      return;
+    }
+    const nextActive =
+      remaining.find((item) => item.groupCode === current.activeCode) ?? remaining[0];
+    const cached = loadGroupCache(nextActive.groupCode);
+    persistAccount({ activeCode: nextActive.groupCode, memberships: remaining });
+    if (cached) applyGroup(cached);
+    else setGroup(null);
+    setTab("calendar");
+    if (message) setError(message);
+  };
+
+  const activateMembership = (membership: Membership, nextGroup?: Group) => {
+    const current = accountRef.current;
+    const others = (current?.memberships ?? []).filter((item) => item.groupCode !== membership.groupCode);
+    persistAccount({ activeCode: membership.groupCode, memberships: [...others, membership] });
+    if (nextGroup) {
+      applyGroup(nextGroup);
+      saveGroupCache(nextGroup);
+    }
   };
 
   const startGroup = async (name: string, groupName: string) => {
     const profile: Profile = { id: uid("mem"), name: name.trim(), color: colorFor(0) };
     const created = await createGroup(groupName.trim() || "Family", profile);
     setError(null);
-    applyGroup(created);
-    saveGroupCache(created);
-    persistSession({ profile, groupCode: created.code });
+    activateMembership({ profile, groupCode: created.code, groupName: created.name }, created);
   };
 
   const joinGroup = async (name: string, code: string) => {
     const remote = await fetchGroup(code);
-    const profile: Profile = {
-      id: uid("mem"),
-      name: name.trim(),
-      color: colorFor(remote.members.length),
-    };
-    const next = {
-      ...remote,
-      members: [...remote.members, { ...profile, admin: false }],
-      dinners: remote.dinners ?? [],
-      wishlists: remote.wishlists ?? [],
-      kickedIds: remote.kickedIds ?? [],
-      updatedAt: Date.now(),
-    };
+    const current = accountRef.current;
+    const already = current?.memberships.find((item) => item.groupCode === remote.code);
+    if (already && current) {
+      setError(null);
+      const cached = loadGroupCache(remote.code);
+      persistAccount({ ...current, activeCode: remote.code });
+      applyGroup(cached && cached.updatedAt > (remote.updatedAt || 0) ? cached : remote);
+      return;
+    }
+    const existing = memberByName(remote, name);
+    const profile: Profile = existing
+      ? { id: existing.id, name: existing.name, color: existing.color }
+      : {
+          id: uid("mem"),
+          name: name.trim().replace(/\s+/g, " "),
+          color: colorFor(remote.members.length),
+        };
+    const next = existing
+      ? remote
+      : {
+          ...remote,
+          members: [...remote.members, { ...profile, admin: false }],
+          dinners: remote.dinners ?? [],
+          wishlists: remote.wishlists ?? [],
+          kickedIds: remote.kickedIds ?? [],
+          updatedAt: Date.now(),
+        };
     setError(null);
-    applyGroup(next);
-    saveGroupCache(next);
-    persistSession({ profile, groupCode: remote.code });
+    activateMembership({ profile, groupCode: remote.code, groupName: remote.name }, next);
+  };
+
+  const switchGroup = (code: string) => {
+    const current = accountRef.current;
+    const membership = current?.memberships.find((item) => item.groupCode === normalizeCode(code));
+    if (!current || !membership || membership.groupCode === current.activeCode) return;
+    const cached = loadGroupCache(membership.groupCode);
+    persistAccount({ ...current, activeCode: membership.groupCode });
+    if (cached) applyGroup(cached);
+    else setGroup(null);
+    setError(null);
   };
 
   const leaveGroup = () => {
-    const code = session?.groupCode;
     sync.current.disconnect();
-    clearSession();
-    if (code) clearGroupCache(code);
-    setSession(null);
-    setGroup(null);
-    setTab("calendar");
+    dropMembership(session?.groupCode);
   };
 
   const patch = (updater: (current: Group) => Group, message?: Record<string, unknown>) => {
@@ -461,11 +551,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         t,
         localizeError,
         session,
+        memberships,
         group,
         status,
         error,
         startGroup,
         joinGroup,
+        switchGroup,
         leaveGroup,
         kickMember,
         makeAdmin,
