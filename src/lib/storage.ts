@@ -93,6 +93,7 @@ export function loadGroupCache(code: string): Group | null {
       events: parsed.events ?? [],
       items: parsed.items ?? [],
       members: parsed.members ?? [],
+      kickedIds: parsed.kickedIds ?? [],
     };
   } catch {
     return null;

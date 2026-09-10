@@ -6,7 +6,7 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import { calendarFetchUrls, GOOGLE_ICAL_HELP, looksLikeHtml, looksLikeIcs } from "./calendar-url.js";
 import { fetchSpondActivities } from "./spond.js";
-import { createFileStore, sanitizeGroup } from "./store.js";
+import { createFileStore, ensureGroupRoles, sanitizeGroup } from "./store.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
@@ -22,10 +22,13 @@ const fileStore = createFileStore(dataDir, dataFile);
 
 /** @type {Record<string, object>} */
 let groups = fileStore.read();
+for (const group of Object.values(groups)) ensureGroupRoles(group);
 
 function persist() {
   fileStore.write(groups);
 }
+
+persist();
 
 /** @type {Record<string, { email: string, password: string }>} */
 let secrets = {};
@@ -47,7 +50,7 @@ function secretKey(code, sourceId) {
 
 function publicGroup(group) {
   return {
-    ...group,
+    ...ensureGroupRoles(group),
     dinners: group.dinners || [],
     wishlists: group.wishlists || [],
     sources: (group.sources || []).map((source) => {
@@ -58,17 +61,38 @@ function publicGroup(group) {
 }
 
 function emptyGroup(code, name, member) {
-  return {
+  const creator = member?.id
+    ? { ...member, admin: true }
+    : null;
+  return ensureGroupRoles({
     code,
     name,
-    members: member ? [member] : [],
+    members: creator ? [creator] : [],
+    kickedIds: [],
     events: [],
     items: [],
     dinners: [],
     wishlists: [],
     sources: [],
     updatedAt: Date.now(),
-  };
+  });
+}
+
+function memberFromSocket(ws, group) {
+  const id = ws.memberId;
+  if (!id) return null;
+  return (group.members || []).find((member) => member.id === id) || null;
+}
+
+function closeKicked(code, memberId) {
+  const room = rooms.get(code);
+  if (!room) return;
+  for (const client of room) {
+    if (client.memberId === memberId) {
+      send(client, { type: "kicked" });
+      client.close();
+    }
+  }
 }
 
 /** @type {Map<string, Set<import('ws').WebSocket>>} */
@@ -119,6 +143,14 @@ app.post("/api/groups/restore", (req, res) => {
   const incoming = sanitizeGroup(req.body?.group);
   if (!incoming) return res.status(400).json({ error: "Could not restore that group" });
   const existing = groups[incoming.code];
+  if (existing) {
+    incoming.kickedIds = [...new Set([...(existing.kickedIds || []), ...(incoming.kickedIds || [])])];
+    const existingAdmins = new Set((existing.members || []).filter((member) => member.admin).map((member) => member.id));
+    incoming.members = incoming.members.map((member) =>
+      existingAdmins.has(member.id) ? { ...member, admin: true } : member,
+    );
+    ensureGroupRoles(incoming);
+  }
   if (!existing || Number(incoming.updatedAt) >= Number(existing.updatedAt || 0)) {
     groups[incoming.code] = incoming;
     persist();
@@ -259,16 +291,49 @@ wss.on("connection", (ws, req) => {
 
     switch (msg.type) {
       case "hello": {
-        if (msg.member?.id) {
-          const idx = group.members.findIndex((m) => m.id === msg.member.id);
-          if (idx >= 0) group.members[idx] = { ...group.members[idx], ...msg.member };
-          else group.members.push(msg.member);
+        if (!msg.member?.id) return;
+        const incoming = {
+          id: String(msg.member.id),
+          name: String(msg.member.name || "").slice(0, 60),
+          color: String(msg.member.color || "#c45c26"),
+        };
+        ws.memberId = incoming.id;
+        if ((group.kickedIds || []).includes(incoming.id)) {
+          send(ws, { type: "kicked" });
+          ws.close();
+          return;
+        }
+        const idx = group.members.findIndex((m) => m.id === incoming.id);
+        if (idx >= 0) {
+          const admin = Boolean(group.members[idx].admin);
+          group.members[idx] = { ...group.members[idx], ...incoming, admin };
+        } else {
+          group.members.push({ ...incoming, admin: false });
         }
         break;
       }
       case "group:rename":
         group.name = String(msg.name || group.name).slice(0, 60);
         break;
+      case "member:kick": {
+        const actor = memberFromSocket(ws, group);
+        const targetId = String(msg.id || "");
+        const target = group.members.find((member) => member.id === targetId);
+        if (!actor?.admin || !target || target.id === actor.id) return;
+        const adminCount = group.members.filter((member) => member.admin).length;
+        if (target.admin && adminCount < 2) return;
+        group.members = group.members.filter((member) => member.id !== targetId);
+        group.kickedIds = [...new Set([...(group.kickedIds || []), targetId])];
+        closeKicked(code, targetId);
+        break;
+      }
+      case "member:admin": {
+        const actor = memberFromSocket(ws, group);
+        const target = group.members.find((member) => member.id === String(msg.id || ""));
+        if (!actor?.admin || !target) return;
+        target.admin = true;
+        break;
+      }
       case "event:upsert":
         upsert(group.events, msg.event);
         break;

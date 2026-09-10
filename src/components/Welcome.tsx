@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useApp } from "../state/AppState";
 
 export function Welcome() {
-  const { startGroup, joinGroup, t, localizeError, language, setLanguage } = useApp();
+  const { startGroup, joinGroup, t, localizeError, language, setLanguage, error: sessionError } = useApp();
   const [mode, setMode] = useState<"create" | "join">("create");
   const [name, setName] = useState("");
   const [groupName, setGroupName] = useState("");
@@ -57,7 +57,7 @@ export function Welcome() {
               />
             </label>
           )}
-          {error ? <p className="error">{error}</p> : null}
+          {error || sessionError ? <p className="error">{localizeError(error || sessionError || "")}</p> : null}
           <div className="row">
             <button className="btn" type="submit" disabled={busy}>
               {mode === "create" ? t("createSharedCalendar") : t("joinGroup")}

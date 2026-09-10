@@ -12,6 +12,8 @@ export function GroupView() {
     error,
     renameGroup,
     leaveGroup,
+    kickMember,
+    makeAdmin,
     importIcsText,
     importIcsUrl,
     importSpond,
@@ -95,6 +97,15 @@ export function GroupView() {
     setMessage(t("inviteCopied"));
   };
 
+  const me = group?.members.find((member) => member.id === session?.profile.id);
+  const isAdmin = Boolean(me?.admin);
+  const adminCount = group?.members.filter((member) => member.admin).length ?? 0;
+
+  const onKick = (id: string, name: string) => {
+    if (!window.confirm(t("kickConfirm", { name }))) return;
+    kickMember(id);
+  };
+
   const statusLabel =
     status === "live" ? t("liveSync") : status === "connecting" ? t("connecting") : t("workingOffline");
 
@@ -121,16 +132,42 @@ export function GroupView() {
             <Copy size={16} /> {t("copyCode")}
           </button>
         </div>
-        <div className="members">
-          {group?.members.map((member) => (
-            <span className="member" key={member.id}>
-              <span className="avatar" style={{ background: member.color }}>
-                {initials(member.name)}
-              </span>
-              {member.name}
-              {member.id === session?.profile.id ? t("you") : ""}
-            </span>
-          ))}
+        <div className="member-list">
+          {group?.members.map((member) => {
+            const self = member.id === session?.profile.id;
+            const canKick = isAdmin && !self && !(member.admin && adminCount < 2);
+            const canPromote = isAdmin && !self && !member.admin;
+            return (
+              <div className="member-row" key={member.id}>
+                <div className="member-who">
+                  <span className="avatar" style={{ background: member.color }}>
+                    {initials(member.name)}
+                  </span>
+                  <div>
+                    <strong>
+                      {member.name}
+                      {self ? t("you") : ""}
+                    </strong>
+                    {member.admin ? <div className="member-role">{t("administrator")}</div> : null}
+                  </div>
+                </div>
+                {canKick || canPromote ? (
+                  <div className="row">
+                    {canPromote ? (
+                      <button type="button" className="btn secondary small" onClick={() => makeAdmin(member.id)}>
+                        {t("makeAdmin")}
+                      </button>
+                    ) : null}
+                    {canKick ? (
+                      <button type="button" className="btn danger small" onClick={() => onKick(member.id, member.name)}>
+                        {t("kickMember")}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
         <label className="field">
           <span>{t("renameGroup")}</span>
