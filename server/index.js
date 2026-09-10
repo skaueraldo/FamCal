@@ -339,19 +339,29 @@ wss.on("connection", async (ws, req) => {
         if (!msg.member?.id) return;
         const incoming = {
           id: String(msg.member.id),
-          name: String(msg.member.name || "").slice(0, 60),
+          name: String(msg.member.name || "").trim().replace(/\s+/g, " ").slice(0, 60),
           color: String(msg.member.color || "#c45c26"),
         };
-        ws.memberId = incoming.id;
-        if ((group.kickedIds || []).includes(incoming.id)) {
+        const nameKey = incoming.name.toLowerCase();
+        const byName = incoming.name
+          ? group.members.find((m) => String(m.name || "").trim().replace(/\s+/g, " ").toLowerCase() === nameKey)
+          : null;
+        const byId = group.members.find((m) => m.id === incoming.id);
+        const existing = byName || byId;
+        ws.memberId = existing?.id || incoming.id;
+        if ((group.kickedIds || []).includes(ws.memberId)) {
           send(ws, { type: "kicked" });
           ws.close();
           return;
         }
-        const idx = group.members.findIndex((m) => m.id === incoming.id);
-        if (idx >= 0) {
-          const admin = Boolean(group.members[idx].admin);
-          group.members[idx] = { ...group.members[idx], ...incoming, admin };
+        if (existing) {
+          const idx = group.members.findIndex((m) => m.id === existing.id);
+          group.members[idx] = {
+            ...existing,
+            name: incoming.name || existing.name,
+            color: existing.color,
+            admin: Boolean(existing.admin),
+          };
         } else {
           group.members.push({ ...incoming, admin: false });
         }

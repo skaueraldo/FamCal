@@ -1,6 +1,7 @@
 import type { Lang, Theme } from "./i18n";
 import { detectLang } from "./i18n";
-import type { Group, Session } from "../types";
+import { normalizeCode } from "./identity";
+import type { Account, Group, Membership, Session } from "../types";
 
 const KEY = "famcal.session";
 const PREFS_KEY = "famcal.prefs";
@@ -62,17 +63,67 @@ export function savePrefs(prefs: Prefs): void {
   localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
 }
 
-export function loadSession(): Session | null {
+function asMembership(raw: Partial<Membership> & Partial<Session>): Membership | null {
+  const groupCode = normalizeCode(String(raw.groupCode || ""));
+  const profile = raw.profile;
+  if (!groupCode || !profile?.id || !profile.name) return null;
+  return {
+    groupCode,
+    groupName: raw.groupName ? String(raw.groupName) : undefined,
+    profile: {
+      id: String(profile.id),
+      name: String(profile.name),
+      color: String(profile.color || "#c45c26"),
+    },
+  };
+}
+
+export function loadAccount(): Account | null {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Session) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<Account> & Partial<Session> & { memberships?: unknown };
+    if (Array.isArray(parsed.memberships) && parsed.memberships.length) {
+      const memberships = parsed.memberships
+        .map((item) => asMembership(item as Membership))
+        .filter((item): item is Membership => Boolean(item));
+      if (!memberships.length) return null;
+      const activeCode =
+        normalizeCode(String(parsed.activeCode || "")) || memberships[0].groupCode;
+      const active = memberships.find((item) => item.groupCode === activeCode) ?? memberships[0];
+      return { activeCode: active.groupCode, memberships };
+    }
+    const legacy = asMembership(parsed);
+    if (!legacy) return null;
+    return { activeCode: legacy.groupCode, memberships: [legacy] };
   } catch {
     return null;
   }
 }
 
+export function saveAccount(account: Account): void {
+  localStorage.setItem(KEY, JSON.stringify(account));
+}
+
+export function loadSession(): Session | null {
+  const account = loadAccount();
+  if (!account) return null;
+  const active =
+    account.memberships.find((item) => item.groupCode === account.activeCode) ?? account.memberships[0];
+  return { profile: active.profile, groupCode: active.groupCode };
+}
+
 export function saveSession(session: Session): void {
-  localStorage.setItem(KEY, JSON.stringify(session));
+  const current = loadAccount();
+  const membership: Membership = { groupCode: session.groupCode, profile: session.profile };
+  if (!current) {
+    saveAccount({ activeCode: session.groupCode, memberships: [membership] });
+    return;
+  }
+  const memberships = current.memberships.some((item) => item.groupCode === session.groupCode)
+    ? current.memberships.map((item) => (item.groupCode === session.groupCode ? { ...item, ...membership } : item))
+    : [...current.memberships, membership];
+  saveAccount({ activeCode: session.groupCode, memberships });
 }
 
 export function clearSession(): void {

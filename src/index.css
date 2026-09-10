@@ -915,6 +915,29 @@ h3 {
   border: 0;
 }
 
+.group-switch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+.group-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--muted-surface);
+}
+
+.group-switch-row.active {
+  border-color: var(--sage);
+  background: color-mix(in srgb, var(--sage) 12%, var(--sheet));
+}
+
 .choice-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

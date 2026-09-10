@@ -17,6 +17,7 @@ export class SyncClient {
 
   connect(code: string, member: Member) {
     this.closed = false;
+    if (this.code !== code) this.queue = [];
     this.code = code;
     this.member = member;
     this.open();
@@ -24,9 +25,15 @@ export class SyncClient {
 
   disconnect() {
     this.closed = true;
+    this.queue = [];
     if (this.timer) window.clearTimeout(this.timer);
-    this.ws?.close();
-    this.ws = null;
+    this.timer = null;
+    if (this.ws) {
+      this.ws.onclose = null;
+      this.ws.close();
+      this.ws = null;
+    }
+    this.setStatus("offline");
   }
 
   subscribe(fn: Listener) {
@@ -59,6 +66,11 @@ export class SyncClient {
   }
 
   private open() {
+    if (this.ws) {
+      this.ws.onclose = null;
+      this.ws.close();
+      this.ws = null;
+    }
     this.setStatus("connecting");
     const proto = location.protocol === "https:" ? "wss" : "ws";
     const ws = new WebSocket(`${proto}://${location.host}/ws?code=${encodeURIComponent(this.code)}`);
