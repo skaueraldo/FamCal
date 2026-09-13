@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { formatTime } from "../lib/dates";
+import { formatTime, toISODate } from "../lib/dates";
+import { occurrencesOnDay } from "../lib/events";
 import {
   markNotified,
   reminderTag,
@@ -167,14 +168,17 @@ export function NotificationHost() {
     if (!notify.calendar || !group) return;
 
     const tick = () => {
-      for (const event of group.events) {
-        if (!reminderWindow(event)) continue;
-        const tag = reminderTag(event);
+      const iso = toISODate(new Date());
+      for (const occ of occurrencesOnDay(group.events, iso)) {
+        if (occ.iso !== occ.startDate) continue;
+        const timed = { ...occ.event, date: occ.startDate };
+        if (!reminderWindow(timed)) continue;
+        const tag = reminderTag(timed, occ.startDate);
         if (wasNotified(tag)) continue;
         markNotified(tag);
-        const title = event.title.trim() || t("tabCalendar");
-        const body = event.start
-          ? t("notificationEventSoon", { title, time: formatTime(event.start, language) })
+        const title = occ.event.title.trim() || t("tabCalendar");
+        const body = occ.event.start
+          ? t("notificationEventSoon", { title, time: formatTime(occ.event.start, language) })
           : t("notificationAllDay", { title });
         void showNotice({ title, body, tag, tab: "calendar" });
       }
