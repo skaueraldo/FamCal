@@ -168,6 +168,7 @@ h3 {
 
 .field input,
 .field textarea,
+.field select,
 .sheet input,
 .sheet textarea,
 .composer input {
@@ -180,6 +181,7 @@ h3 {
 }
 
 .field input:focus,
+.field select:focus,
 .sheet input:focus,
 .sheet textarea:focus,
 .composer input:focus {
@@ -849,6 +851,42 @@ h3 {
   align-items: flex-start;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.when-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.when-grid .field {
+  margin-bottom: 10px;
+}
+
+.color-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.color-pick {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 2px solid var(--line);
+  padding: 0;
+  cursor: pointer;
+  background: var(--muted-surface);
+}
+
+.color-pick.auto {
+  background:
+    conic-gradient(from 90deg, #c45c26, #3d6b8a, #4a6b4e, #a63d4a, #c45c26);
+}
+
+.color-pick.active {
+  box-shadow: 0 0 0 2px var(--ink);
+  border-color: var(--sheet);
 }
 
 .event-list {

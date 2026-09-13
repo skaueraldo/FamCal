@@ -115,6 +115,6 @@ export function reminderWindow(event: CalEvent, now = Date.now()): boolean {
   return now >= remindAt && now <= until;
 }
 
-export function reminderTag(event: CalEvent): string {
-  return `event:${event.id}:${event.date}`;
+export function reminderTag(event: CalEvent, iso = event.date): string {
+  return `event:${event.id}:${iso}`;
 }

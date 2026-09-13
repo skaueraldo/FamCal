@@ -7,14 +7,20 @@ export interface Member {
   admin?: boolean;
 }
 
+export type RepeatRule = "daily" | "weekly" | "monthly" | "yearly";
+
 export interface CalEvent {
   id: string;
   title: string;
   date: string;
+  endDate?: string;
   start?: string;
   end?: string;
   notes?: string;
   memberId: string;
+  color?: string;
+  repeat?: RepeatRule;
+  repeatUntil?: string;
   sourceId?: string;
   uid?: string;
 }

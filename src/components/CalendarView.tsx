@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
+import { eventColor, groupOccurrencesByDay, type EventOccurrence } from "../lib/events";
 import {
   addDays,
   addMonths,
@@ -16,7 +17,6 @@ import {
   toISODate,
 } from "../lib/dates";
 import { useApp } from "../state/AppState";
-import type { CalEvent } from "../types";
 import { DayAgenda } from "./DayAgenda";
 import { NotifyToggle } from "./NotifyToggle";
 
@@ -37,17 +37,19 @@ export function CalendarView() {
   const weekOrigin = startOfWeek(parseISODate(focus));
   const weekDays = useMemo(() => buildWeekDays(startOfWeek(parseISODate(focus)), language), [focus, language]);
   const eventsByDay = useMemo(() => {
-    const map = new Map<string, CalEvent[]>();
-    for (const event of group?.events ?? []) {
-      const list = map.get(event.date) ?? [];
-      list.push(event);
-      map.set(event.date, list);
+    const events = group?.events ?? [];
+    if (view === "week") {
+      const from = weekDays[0]?.iso;
+      const to = weekDays[6]?.iso;
+      return from && to ? groupOccurrencesByDay(events, from, to) : new Map<string, EventOccurrence[]>();
     }
-    for (const list of map.values()) {
-      list.sort((a, b) => (a.start || "").localeCompare(b.start || ""));
+    if (view === "month" && weeks.length) {
+      const from = weeks[0]?.days[0]?.iso;
+      const to = weeks[weeks.length - 1]?.days[6]?.iso;
+      return from && to ? groupOccurrencesByDay(events, from, to) : new Map<string, EventOccurrence[]>();
     }
-    return map;
-  }, [group?.events]);
+    return groupOccurrencesByDay(events, focus, focus);
+  }, [group?.events, view, weekDays, weeks, focus]);
 
   const memberColor = (memberId: string) =>
     group?.members.find((member) => member.id === memberId)?.color ?? "#c45c26";
@@ -180,10 +182,14 @@ export function CalendarView() {
                 </div>
                 <div className="chips">
                   {events.length === 0 ? <span className="meta">{t("noEventsShort")}</span> : null}
-                  {events.map((event) => (
-                    <span key={event.id} className="chip" style={{ background: memberColor(event.memberId) }}>
-                      {event.start ? `${formatTime(event.start, language)} ` : ""}
-                      {event.title}
+                  {events.map((occ) => (
+                    <span
+                      key={`${occ.event.id}:${occ.startDate}`}
+                      className="chip"
+                      style={{ background: eventColor(occ.event, memberColor(occ.event.memberId)) }}
+                    >
+                      {occ.event.start ? `${formatTime(occ.event.start, language)} ` : ""}
+                      {occ.event.title}
                     </span>
                   ))}
                 </div>
@@ -224,10 +230,14 @@ export function CalendarView() {
                     <span className="dow">{day.weekdayShort}</span>
                     <span className="num">{day.date.getDate()}</span>
                     <div className="chips">
-                      {shown.map((event) => (
-                        <span key={event.id} className="chip" style={{ background: memberColor(event.memberId) }}>
-                          {event.start ? `${formatTime(event.start, language)} ` : ""}
-                          {event.title}
+                      {shown.map((occ) => (
+                        <span
+                          key={`${occ.event.id}:${occ.startDate}`}
+                          className="chip"
+                          style={{ background: eventColor(occ.event, memberColor(occ.event.memberId)) }}
+                        >
+                          {occ.event.start ? `${formatTime(occ.event.start, language)} ` : ""}
+                          {occ.event.title}
                         </span>
                       ))}
                       {events.length > 3 ? <span className="more">{t("moreEvents", { n: events.length - 3 })}</span> : null}
