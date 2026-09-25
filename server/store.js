@@ -1,7 +1,20 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { get, put } from "@vercel/blob";
 
-const MEMBER_COLORS = ["#8a9bb0", "#7d9b88", "#c4a4b0", "#a8b8c8", "#d4b4a0", "#9aa8c4", "#b8a7d4", "#7eb8b0", "#d4a5a5", "#c9b8a0"];
+const MEMBER_COLORS = ["#e53935", "#fb8c00", "#43a047", "#1e88e5", "#8e24aa", "#d81b60", "#00897b", "#6d4c41", "#3949ab", "#00acc1"];
+
+const COLOR_UPGRADES = {
+  "#8a9bb0": "#1e88e5",
+  "#7d9b88": "#43a047",
+  "#c4a4b0": "#d81b60",
+  "#a8b8c8": "#3949ab",
+  "#d4b4a0": "#fb8c00",
+  "#9aa8c4": "#00acc1",
+  "#b8a7d4": "#8e24aa",
+  "#7eb8b0": "#00897b",
+  "#d4a5a5": "#e53935",
+  "#c9b8a0": "#6d4c41",
+};
 
 function asArray(value) {
   return Array.isArray(value) ? value : [];
@@ -9,7 +22,8 @@ function asArray(value) {
 
 function normalizeColor(color) {
   const value = String(color || "").trim();
-  return /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : "";
+  const hex = /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : "";
+  return COLOR_UPGRADES[hex] || hex;
 }
 
 export function nextFreeMemberColor(used, keep = "") {
@@ -184,7 +198,7 @@ export function sanitizeGroup(raw) {
       .map((member) => ({
         id: String(member.id),
         name: String(member.name || "").slice(0, 60),
-        color: String(member.color || "#8a9bb0"),
+        color: String(member.color || "#1e88e5"),
         admin: Boolean(member.admin),
       })),
     kickedIds: asArray(raw.kickedIds).map(String).filter(Boolean),

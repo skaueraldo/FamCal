@@ -124,7 +124,7 @@ function asMembership(raw: Partial<Membership> & Partial<Session>): Membership |
     profile: {
       id: String(profile.id),
       name: String(profile.name),
-      color: String(profile.color || "#8a9bb0"),
+      color: String(profile.color || "#1e88e5"),
     },
   };
 }
