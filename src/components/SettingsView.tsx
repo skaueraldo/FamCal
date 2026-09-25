@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { CHANGELOG } from "../lib/changelog";
 import { localeTag } from "../lib/i18n";
-import { captureOwnerKey, looksLikeOwner, readOwnerKey } from "../lib/owner";
+import { captureOwnerKey, readOwnerKey } from "../lib/owner";
 import { MENU_SECTIONS, type MenuSection } from "../lib/storage";
 import { fetchOwnerGroups } from "../lib/sync";
 import { useApp } from "../state/AppState";
@@ -26,24 +26,21 @@ function isStandalone() {
 export function SettingsView() {
   const { theme, setTheme, language, setLanguage, menu, setMenuSection, session, t } = useApp();
   const installed = isStandalone();
-  const [ownerGroups, setOwnerGroups] = useState<{ name: string; owner: string; members: number }[] | null>(null);
+  const [ownerGroups, setOwnerGroups] = useState<
+    { name: string; owner: string; members: number; createdAt: number }[] | null
+  >(null);
 
   useEffect(() => {
     const key = captureOwnerKey() || readOwnerKey();
-    const name = session?.profile.name;
-    if (!key && !looksLikeOwner(name)) return;
+    if (!key) return;
     let cancelled = false;
-    void fetchOwnerGroups({
-      ownerKey: key,
-      memberId: session?.profile.id,
-      name,
-    }).then((list) => {
+    void fetchOwnerGroups({ ownerKey: key }).then((list) => {
       if (!cancelled) setOwnerGroups(list);
     });
     return () => {
       cancelled = true;
     };
-  }, [session?.profile.id, session?.profile.name]);
+  }, []);
 
   return (
     <section className="main panel">
@@ -163,6 +160,17 @@ export function SettingsView() {
                   <div>
                     <strong>{item.name}</strong>
                     {item.owner ? <div className="meta">{t("ownerGroupOwner", { name: item.owner })}</div> : null}
+                    {item.createdAt ? (
+                      <div className="meta">
+                        {t("ownerGroupCreated", {
+                          date: new Date(item.createdAt).toLocaleDateString(localeTag(language), {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          }),
+                        })}
+                      </div>
+                    ) : null}
                   </div>
                   <span>
                     {item.members === 1

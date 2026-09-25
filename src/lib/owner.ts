@@ -22,10 +22,3 @@ export function readOwnerKey(): string {
     return "";
   }
 }
-
-export function looksLikeOwner(name?: string): boolean {
-  return String(name || "")
-    .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase() === "espen";
-}

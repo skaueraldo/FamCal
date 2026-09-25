@@ -93,6 +93,30 @@ export function mergeMembers(left, right, kickedIds = [], preferRight = false) {
   });
 }
 
+const EARLIEST_CREATED_AT = Date.UTC(2024, 0, 1);
+
+function isPlausibleCreatedAt(value) {
+  const stamp = Number(value);
+  return Number.isFinite(stamp) && stamp >= EARLIEST_CREATED_AT && stamp <= Date.now() + 86_400_000;
+}
+
+export function groupCreatedAt(group) {
+  if (!group || typeof group !== "object") return Date.now();
+  if (isPlausibleCreatedAt(group.createdAt)) return Number(group.createdAt);
+  const times = [];
+  const push = (value) => {
+    if (isPlausibleCreatedAt(value)) times.push(Number(value));
+  };
+  push(group.updatedAt);
+  for (const item of asArray(group.items)) push(item?.createdAt);
+  for (const list of [...asArray(group.wishlists), ...asArray(group.todos), ...asArray(group.spendings)]) {
+    push(list?.createdAt);
+    for (const item of asArray(list?.items)) push(item?.createdAt);
+  }
+  for (const entry of asArray(group.shopHistory)) push(entry?.lastUsed);
+  return times.length ? Math.min(...times) : Date.now();
+}
+
 export function mergeGroupState(left, right, options = {}) {
   if (!left) return right;
   if (!right) return left;
@@ -107,6 +131,7 @@ export function mergeGroupState(left, right, options = {}) {
     name: String(newer.name || older.name || "Family"),
     kickedIds,
     members: mergeMembers(left.members, right.members, kickedIds, rightNewer),
+    createdAt: Math.min(groupCreatedAt(left), groupCreatedAt(right)),
     updatedAt: Math.max(Number(left.updatedAt) || 0, Number(right.updatedAt) || 0),
   };
   for (const key of ["events", "items", "dinners", "wishlists", "todos", "spendings", "sources", "shopHistory"]) {
@@ -249,6 +274,7 @@ export function sanitizeGroup(raw) {
     sources: asArray(raw.sources)
       .filter((source) => source && source.id)
       .map(({ password, token, ...source }) => source),
+    createdAt: groupCreatedAt(raw),
     updatedAt: Number(raw.updatedAt) || Date.now(),
   });
 }

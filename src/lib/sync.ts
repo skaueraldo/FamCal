@@ -124,22 +124,21 @@ export async function createGroup(name: string, member: Member): Promise<Group> 
 
 export async function fetchOwnerGroups(input: {
   ownerKey?: string;
-  memberId?: string;
-  name?: string;
-}): Promise<{ name: string; owner: string; members: number }[] | null> {
+}): Promise<{ name: string; owner: string; members: number; createdAt: number }[] | null> {
   const headers: Record<string, string> = {};
   if (input.ownerKey) headers["x-famcal-owner"] = input.ownerKey;
-  if (input.memberId) headers["x-famcal-member"] = input.memberId;
-  if (input.name) headers["x-famcal-name"] = input.name;
-  if (!headers["x-famcal-owner"] && !headers["x-famcal-member"]) return null;
+  if (!headers["x-famcal-owner"]) return null;
   const res = await fetch("/api/owner/groups", { headers });
   if (!res.ok) return null;
-  const body = (await res.json().catch(() => null)) as { groups?: { name?: string; owner?: string; members?: number }[] } | null;
+  const body = (await res.json().catch(() => null)) as {
+    groups?: { name?: string; owner?: string; members?: number; createdAt?: number }[];
+  } | null;
   if (!Array.isArray(body?.groups)) return null;
   return body.groups.map((group) => ({
     name: String(group.name || ""),
     owner: String(group.owner || "").trim(),
     members: Number(group.members) || 0,
+    createdAt: Number(group.createdAt) || 0,
   }));
 }
 

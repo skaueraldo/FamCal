@@ -123,6 +123,7 @@ export interface Group {
   todos: TodoList[];
   spendings: SpendList[];
   sources: Source[];
+  createdAt?: number;
   updatedAt: number;
 }
 
