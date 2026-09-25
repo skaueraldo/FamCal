@@ -22,7 +22,7 @@ const items: { id: Tab; icon: LucideIcon; label: "tabCalendar" | "tabDinner" | "
 ];
 
 export function AppShell() {
-  const { tab, setTab, t, menu } = useApp();
+  const { tab, setTab, t, menu, group } = useApp();
   const visible = items.filter((item) => item.id === "settings" || menu[item.id]);
 
   return (
@@ -38,14 +38,21 @@ export function AppShell() {
           );
         })}
       </nav>
-      {tab === "calendar" ? <CalendarView /> : null}
-      {tab === "dinner" ? <DinnerView /> : null}
-      {tab === "shopping" ? <ShoppingView /> : null}
-      {tab === "todos" ? <TodoView /> : null}
-      {tab === "spendings" ? <SpendingView /> : null}
-      {tab === "wishlist" ? <WishlistView /> : null}
-      {tab === "group" ? <GroupView /> : null}
-      {tab === "settings" ? <SettingsView /> : null}
+      <div className="workspace">
+        {group?.name ? (
+          <header className="group-banner">
+            <h1 className="group-title">{group.name}</h1>
+          </header>
+        ) : null}
+        {tab === "calendar" ? <CalendarView /> : null}
+        {tab === "dinner" ? <DinnerView /> : null}
+        {tab === "shopping" ? <ShoppingView /> : null}
+        {tab === "todos" ? <TodoView /> : null}
+        {tab === "spendings" ? <SpendingView /> : null}
+        {tab === "wishlist" ? <WishlistView /> : null}
+        {tab === "group" ? <GroupView /> : null}
+        {tab === "settings" ? <SettingsView /> : null}
+      </div>
     </div>
   );
 }

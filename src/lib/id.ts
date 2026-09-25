@@ -2,10 +2,14 @@ export function uid(prefix = "id"): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
 }
 
-const COLORS = ["#c45c26", "#3d6b8a", "#4a6b4e", "#a63d4a", "#8a5a2b", "#5a4f8a", "#2f6f6a"];
+import { EVENT_COLORS, nextFreeMemberColor } from "./events";
 
 export function colorFor(index: number): string {
-  return COLORS[index % COLORS.length];
+  return EVENT_COLORS[index % EVENT_COLORS.length];
+}
+
+export function freeMemberColor(members: { color?: string }[], keep = ""): string {
+  return nextFreeMemberColor(members.map((member) => member.color || ""), keep);
 }
 
 export function initials(name: string): string {

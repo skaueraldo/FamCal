@@ -1,22 +1,29 @@
 import { Plus, Trash2 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState, type CSSProperties, type FormEvent } from "react";
+import { memberColorOf } from "../lib/events";
 import { uid } from "../lib/id";
 import { useApp } from "../state/AppState";
+import { MemberSelect } from "./MemberSelect";
 import { NotifyToggle } from "./NotifyToggle";
 
 export function WishlistView() {
   const { group, session, t, upsertWishlist, deleteWishlist } = useApp();
   const [listName, setListName] = useState("");
+  const [listMemberId, setListMemberId] = useState(session?.profile.id ?? "");
   const [itemDrafts, setItemDrafts] = useState<Record<string, string>>({});
   const lists = [...(group?.wishlists ?? [])].sort((a, b) => b.createdAt - a.createdAt);
+  const members = group?.members ?? [];
+  const memberColor = (id: string) => memberColorOf(members, id);
+  const who = (id: string) => members.find((member) => member.id === id)?.name ?? t("someone");
 
   const addList = (event: FormEvent) => {
     event.preventDefault();
     if (!listName.trim() || !session) return;
+    const owner = members.some((member) => member.id === listMemberId) ? listMemberId : session.profile.id;
     upsertWishlist({
       id: uid("wish"),
       name: listName.trim(),
-      memberId: session.profile.id,
+      memberId: owner,
       createdAt: Date.now(),
       items: [],
     });
@@ -49,7 +56,7 @@ export function WishlistView() {
       <div className="topbar">
         <div className="topbar-copy">
           <div className="eyebrow">{t("wishlistEyebrow")}</div>
-          <h1>{t("wishlistTitle")}</h1>
+          <h2>{t("wishlistTitle")}</h2>
         </div>
         <NotifyToggle channel="wishlist" />
       </div>
@@ -58,16 +65,25 @@ export function WishlistView() {
         <p className="lede" style={{ marginTop: 0 }}>
           {t("wishlistLede")}
         </p>
-        <form className="composer two" onSubmit={addList}>
+        <form className="composer assign" onSubmit={addList}>
           <input
+            className="list-name"
             value={listName}
             onChange={(e) => setListName(e.target.value)}
             placeholder={t("wishlistNamePlaceholder")}
           />
-          <button className="btn" type="submit">
-            <Plus size={18} />
-            {t("createWishlist")}
-          </button>
+          <div className="composer-tools">
+            <MemberSelect
+              value={listMemberId || session?.profile.id || ""}
+              onChange={setListMemberId}
+              members={members}
+              label={t("assignTo")}
+            />
+            <button className="btn" type="submit">
+              <Plus size={18} />
+              {t("createWishlist")}
+            </button>
+          </div>
         </form>
       </div>
 
@@ -77,15 +93,25 @@ export function WishlistView() {
         </div>
       ) : (
         lists.map((list) => (
-          <div className="card" key={list.id}>
+          <div className="card assigned-card" key={list.id} style={{ "--member-color": memberColor(list.memberId) } as CSSProperties}>
             <div className="wishlist-head">
               <div>
                 <h2>{list.name}</h2>
-                <div className="meta">{t("itemsOnList", { n: list.items.length })}</div>
+                <div className="meta">
+                  {t("itemsOnList", { n: list.items.length })} · {who(list.memberId)}
+                </div>
               </div>
-              <button className="btn danger" onClick={() => deleteWishlist(list.id)}>
-                {t("deleteWishlist")}
-              </button>
+              <div className="list-assign">
+                <MemberSelect
+                  value={list.memberId}
+                  onChange={(id) => upsertWishlist({ ...list, memberId: id })}
+                  members={members}
+                  label={t("assignTo")}
+                />
+                <button className="btn danger" onClick={() => deleteWishlist(list.id)}>
+                  {t("deleteWishlist")}
+                </button>
+              </div>
             </div>
             {list.items.length === 0 ? (
               <p className="empty">{t("emptyWishlist")}</p>
@@ -93,6 +119,7 @@ export function WishlistView() {
               <div className="shop-list">
                 {list.items.map((item) => (
                   <div className="wish-item" key={item.id}>
+                    <i style={{ background: memberColor(list.memberId) }} />
                     <strong>{item.name}</strong>
                     <button className="icon-btn" aria-label={t("deleteItem")} onClick={() => removeItem(list.id, item.id)}>
                       <Trash2 size={16} />

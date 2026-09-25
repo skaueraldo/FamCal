@@ -58,7 +58,7 @@ export function TodoView() {
       <div className="topbar">
         <div className="topbar-copy">
           <div className="eyebrow">{t("todosEyebrow")}</div>
-          <h1>{t("todosTitle")}</h1>
+          <h2>{t("todosTitle")}</h2>
         </div>
         <NotifyToggle channel="todos" />
       </div>

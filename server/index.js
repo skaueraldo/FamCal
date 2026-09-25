@@ -6,7 +6,7 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import { calendarFetchUrls, GOOGLE_ICAL_HELP, looksLikeHtml, looksLikeIcs } from "./calendar-url.js";
 import { fetchSpondActivities } from "./spond.js";
-import { createDurableStore, createFileStore, ensureGroupRoles, mergeGroups, mergeGroupState, sanitizeGroup } from "./store.js";
+import { createDurableStore, createFileStore, ensureGroupRoles, isColorTaken, mergeGroups, mergeGroupState, nextFreeMemberColor, sanitizeGroup } from "./store.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
@@ -80,7 +80,7 @@ function publicGroup(group) {
 
 function emptyGroup(code, name, member) {
   const creator = member?.id
-    ? { ...member, admin: true }
+    ? { ...member, admin: true, color: nextFreeMemberColor([], member.color) }
     : null;
   return ensureGroupRoles({
     code,
@@ -338,7 +338,7 @@ wss.on("connection", async (ws, req) => {
         const incoming = {
           id: String(msg.member.id),
           name: String(msg.member.name || "").trim().replace(/\s+/g, " ").slice(0, 60),
-          color: String(msg.member.color || "#c45c26"),
+          color: String(msg.member.color || "#8a9bb0"),
         };
         const nameKey = incoming.name.toLowerCase();
         const byName = incoming.name
@@ -357,11 +357,17 @@ wss.on("connection", async (ws, req) => {
           group.members[idx] = {
             ...existing,
             name: incoming.name || existing.name,
-            color: existing.color,
+            color: existing.color || nextFreeMemberColor(
+              group.members.filter((member) => member.id !== existing.id).map((member) => member.color),
+            ),
             admin: Boolean(existing.admin),
           };
         } else {
-          group.members.push({ ...incoming, admin: false });
+          group.members.push({
+            ...incoming,
+            color: nextFreeMemberColor(group.members.map((member) => member.color)),
+            admin: false,
+          });
         }
         break;
       }
@@ -385,6 +391,16 @@ wss.on("connection", async (ws, req) => {
         const target = group.members.find((member) => member.id === String(msg.id || ""));
         if (!actor?.admin || !target) return;
         target.admin = true;
+        break;
+      }
+      case "member:color": {
+        const actor = memberFromSocket(ws, group);
+        const target = group.members.find((member) => member.id === String(msg.id || ""));
+        const color = String(msg.color || "");
+        if (!actor || !target || !/^#[0-9a-fA-F]{6}$/.test(color)) return;
+        if (target.id !== actor.id && !actor.admin) return;
+        if (isColorTaken(group.members, color, target.id)) return;
+        target.color = color.toLowerCase();
         break;
       }
       case "event:upsert":

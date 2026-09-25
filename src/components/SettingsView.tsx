@@ -1,3 +1,5 @@
+import { CHANGELOG } from "../lib/changelog";
+import { localeTag } from "../lib/i18n";
 import { MENU_SECTIONS, type MenuSection } from "../lib/storage";
 import { useApp } from "../state/AppState";
 
@@ -27,7 +29,7 @@ export function SettingsView() {
       <div className="topbar">
         <div className="topbar-copy">
           <div className="eyebrow">{t("settingsEyebrow")}</div>
-          <h1>{t("settingsTitle")}</h1>
+          <h2>{t("settingsTitle")}</h2>
         </div>
       </div>
 
@@ -100,6 +102,31 @@ export function SettingsView() {
         <p className="lede" style={{ marginTop: 8 }}>
           {installed ? t("runningAsApp") : t("addToHomeScreenLede")}
         </p>
+      </div>
+
+      <div className="card">
+        <h2>{t("changelogTitle")}</h2>
+        <p className="lede" style={{ marginTop: 8 }}>
+          {t("changelogLede")}
+        </p>
+        <ol className="changelog">
+          {CHANGELOG.map((entry) => (
+            <li className="changelog-entry" key={entry.date}>
+              <time dateTime={entry.date}>
+                {new Date(`${entry.date}T12:00:00`).toLocaleDateString(localeTag(language), {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </time>
+              <ul>
+                {entry.items.map((item) => (
+                  <li key={item.en}>{item[language]}</li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );

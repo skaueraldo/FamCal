@@ -50,7 +50,7 @@ export function ShoppingView() {
       <div className="topbar">
         <div className="topbar-copy">
           <div className="eyebrow">{t("shoppingEyebrow")}</div>
-          <h1>{t("shoppingTitle")}</h1>
+          <h2>{t("shoppingTitle")}</h2>
         </div>
         <NotifyToggle channel="shopping" />
       </div>
