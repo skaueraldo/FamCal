@@ -271,7 +271,7 @@ a,
 .shell {
   width: min(1160px, calc(100% - 28px));
   margin: 0 auto;
-  padding: 20px 0 calc(104px + var(--safe-bottom));
+  padding: 20px 0 calc(156px + var(--safe-bottom));
 }
 
 .topbar {
@@ -623,7 +623,7 @@ a,
   transform: translateX(-50%);
   width: min(720px, calc(100% - 16px));
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   gap: 4px;
   padding: 5px;
   background: var(--dock-bg);
@@ -641,13 +641,26 @@ a,
   background: transparent;
   color: var(--dock-text);
   border-radius: 16px;
-  padding: 9px 4px 7px;
+  padding: 8px 4px 6px;
+  min-width: 0;
   display: grid;
   justify-items: center;
+  align-content: center;
   gap: 3px;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.01em;
+}
+
+.dock button span {
+  max-width: 100%;
+  line-height: 1.15;
+  text-align: center;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
 }
 
 .dock button.active {

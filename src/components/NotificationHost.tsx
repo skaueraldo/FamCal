@@ -8,6 +8,7 @@ import {
   showNotice,
   wasNotified,
 } from "../lib/notifications";
+import { tabAllowed } from "../lib/storage";
 import { useApp } from "../state/AppState";
 import type { Tab } from "../types";
 
@@ -25,7 +26,7 @@ function isTab(value: unknown): value is Tab {
 }
 
 export function NotificationHost() {
-  const { group, session, notify, language, t, setTab } = useApp();
+  const { group, session, notify, language, t, setTab, menu } = useApp();
   const primed = useRef(false);
   const itemIds = useRef(new Set<string>());
   const eventIds = useRef(new Set<string>());
@@ -40,11 +41,11 @@ export function NotificationHost() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     const onMessage = (event: MessageEvent) => {
-      if (event.data?.type === "open-tab" && isTab(event.data.tab)) setTab(event.data.tab);
+      if (event.data?.type === "open-tab" && isTab(event.data.tab) && tabAllowed(event.data.tab, menu)) setTab(event.data.tab);
     };
     navigator.serviceWorker.addEventListener("message", onMessage);
     return () => navigator.serviceWorker.removeEventListener("message", onMessage);
-  }, [setTab]);
+  }, [menu, setTab]);
 
   useEffect(() => {
     primed.current = false;

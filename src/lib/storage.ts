@@ -37,6 +37,7 @@ export interface Prefs {
   language: Lang;
   notify: NotifyPrefs;
   menu: MenuPrefs;
+  tab?: Tab;
 }
 
 export function emptyNotify(): NotifyPrefs {
@@ -59,15 +60,19 @@ export function parseMenu(raw: unknown): MenuPrefs {
   const defaults = defaultMenu();
   if (!raw || typeof raw !== "object") return defaults;
   const src = raw as Record<string, unknown>;
-  return {
-    calendar: src.calendar !== false,
-    dinner: src.dinner !== false,
-    shopping: src.shopping !== false,
-    todos: src.todos !== false,
-    spendings: src.spendings !== false,
-    wishlist: src.wishlist !== false,
-    group: src.group !== false,
-  };
+  const next = { ...defaults };
+  for (const section of MENU_SECTIONS) {
+    if (section in src) next[section] = src[section] === true;
+  }
+  return next;
+}
+
+export function menusEqual(left: MenuPrefs, right: MenuPrefs): boolean {
+  return MENU_SECTIONS.every((section) => left[section] === right[section]);
+}
+
+export function tabAllowed(tab: Tab, menu: MenuPrefs): boolean {
+  return tab === "settings" || Boolean(menu[tab as MenuSection]);
 }
 
 export function firstVisibleTab(menu: MenuPrefs): Tab {
@@ -102,6 +107,7 @@ export function loadPrefs(): Prefs {
         language: parsed.language === "no" ? "no" : parsed.language === "en" ? "en" : detectLang(),
         notify: parseNotify(parsed),
         menu: parseMenu(parsed.menu),
+        tab: parsed.tab === "settings" || MENU_SECTIONS.includes(parsed.tab as MenuSection) ? (parsed.tab as Tab) : undefined,
       };
     }
   } catch {

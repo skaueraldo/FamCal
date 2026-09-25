@@ -13,6 +13,14 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-09-25",
     items: [
       {
+        en: "Sections you switch off in Settings stay hidden until you switch them on again.",
+        no: "Seksjoner du slår av i Innstillinger forblir skjult til du slår dem på igjen.",
+      },
+      {
+        en: "The bottom section list wraps cleanly on smaller screens.",
+        no: "Listen over seksjoner nederst vises pent på mindre skjermer.",
+      },
+      {
         en: "Group admins can add people by name, who can sign in later with the invite code.",
         no: "Gruppeadministratorer kan legge til folk med navn, som senere kan logge inn med invitasjonskoden.",
       },

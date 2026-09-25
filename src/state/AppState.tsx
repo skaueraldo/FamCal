@@ -15,7 +15,7 @@ import { rememberShopItem, seedShopHistory, shopKey } from "../lib/shop";
 import { memberByName, namesMatch, normalizeCode, reconcileProfile } from "../lib/identity";
 import { parseIcs, sourceNameFromIcs } from "../lib/ics";
 import { mapKnownError, t as translate, type Lang, type MessageKey, type Theme } from "../lib/i18n";
-import { clearGroupCache, clearSession, defaultMenu, emptyNotify, firstVisibleTab, loadAccount, loadGroupCache, loadPrefs, saveAccount, saveGroupCache, savePrefs, type MenuPrefs, type MenuSection, type NotifyChannel, type NotifyPrefs } from "../lib/storage";
+import { clearGroupCache, clearSession, defaultMenu, emptyNotify, firstVisibleTab, loadAccount, loadGroupCache, loadPrefs, menusEqual, parseMenu, saveAccount, saveGroupCache, savePrefs, tabAllowed, type MenuPrefs, type MenuSection, type NotifyChannel, type NotifyPrefs } from "../lib/storage";
 import { SyncClient, createGroup, fetchGroup, fetchIcsUrl, importSpondAccount, refreshSpondAccount, restoreGroup } from "../lib/sync";
 import type { Account, CalEvent, Dinner, Group, Membership, Profile, Session, ShopItem, Source, SpendList, Tab, TodoList, Wishlist } from "../types";
 
@@ -92,12 +92,16 @@ const emptyGroup = (code: string, name: string, profile: Profile): Group => ({
 });
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [tab, setTab] = useState<Tab>("calendar");
   const [prefs, setPrefs] = useState(() => loadPrefs());
   const theme = prefs.theme;
   const language = prefs.language;
   const notify = prefs.notify;
-  const menu = prefs.menu ?? defaultMenu();
+  const menu = parseMenu(prefs.menu);
+  const [tab, setTabState] = useState<Tab>(() => {
+    const stored = loadPrefs();
+    const allowed = parseMenu(stored.menu);
+    return stored.tab && tabAllowed(stored.tab, allowed) ? stored.tab : firstVisibleTab(allowed);
+  });
   const t = (key: MessageKey, vars?: Record<string, string | number>) => translate(language, key, vars);
   const localizeError = (message: string) => mapKnownError(language, message);
   const [account, setAccount] = useState<Account | null>(() => loadAccount());
@@ -161,19 +165,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const setMenuSection = (section: MenuSection, on: boolean) => {
-    setPrefs((current) => {
-      const menuNext = { ...defaultMenu(), ...current.menu, [section]: on };
-      const prefsNext = { ...current, menu: menuNext };
-      savePrefs(prefsNext);
-      if (!on && tab === section) setTab(firstVisibleTab(menuNext));
-      return prefsNext;
+  const persistPrefs = (next: typeof prefs) => {
+    savePrefs(next);
+    return next;
+  };
+
+  const setTab = (next: Tab) => {
+    setTabState((current) => {
+      const allowed = next === "settings" || menu[next as MenuSection];
+      const resolved = allowed ? next : firstVisibleTab(menu);
+      if (resolved === current) return current;
+      setPrefs((prefsNow) => persistPrefs({ ...prefsNow, tab: resolved }));
+      return resolved;
     });
   };
 
+  const setMenuSection = (section: MenuSection, on: boolean) => {
+    const menuNext = { ...defaultMenu(), ...parseMenu(prefs.menu), [section]: on };
+    setPrefs((current) => persistPrefs({ ...current, menu: menuNext, tab: !on && tab === section ? firstVisibleTab(menuNext) : current.tab }));
+    if (!on && tab === section) setTabState(firstVisibleTab(menuNext));
+    if (session) {
+      patch(
+        (g) => ({
+          ...g,
+          members: g.members.map((member) => (member.id === session.profile.id ? { ...member, menu: menuNext } : member)),
+        }),
+        { type: "member:menu", id: session.profile.id, menu: menuNext },
+      );
+    }
+  };
+
   useEffect(() => {
-    if (tab !== "settings" && !menu[tab]) setTab(firstVisibleTab(menu));
+    if (!tabAllowed(tab, menu)) setTab(firstVisibleTab(menu));
   }, [menu, tab]);
+
+  useEffect(() => {
+    const mine = group?.members.find((member) => member.id === session?.profile.id);
+    if (!mine?.menu) return;
+    const incoming = parseMenu(mine.menu);
+    setPrefs((current) => {
+      if (menusEqual(parseMenu(current.menu), incoming)) return current;
+      return persistPrefs({ ...current, menu: incoming });
+    });
+  }, [group, session?.profile.id]);
 
   useEffect(() => {
     const client = sync.current;
@@ -395,6 +429,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return next;
     });
   };
+
+  useEffect(() => {
+    if (!session || !group || group.code !== session.groupCode) return;
+    const mine = group.members.find((member) => member.id === session.profile.id);
+    if (!mine || mine.menu) return;
+    const local = parseMenu(prefs.menu);
+    if (menusEqual(local, defaultMenu())) return;
+    patch(
+      (g) => ({
+        ...g,
+        members: g.members.map((member) => (member.id === session.profile.id ? { ...member, menu: local } : member)),
+      }),
+      { type: "member:menu", id: session.profile.id, menu: local },
+    );
+  }, [session, group, prefs.menu]);
 
   const renameGroup = (name: string) => {
     patch((g) => ({ ...g, name }), { type: "group:rename", name });

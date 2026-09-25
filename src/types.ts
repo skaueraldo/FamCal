@@ -5,6 +5,7 @@ export interface Member {
   name: string;
   color: string;
   admin?: boolean;
+  menu?: Partial<Record<Exclude<Tab, "settings">, boolean>>;
 }
 
 export type RepeatRule = "daily" | "weekly" | "monthly" | "yearly";
