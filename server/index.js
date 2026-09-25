@@ -338,7 +338,7 @@ wss.on("connection", async (ws, req) => {
         const incoming = {
           id: String(msg.member.id),
           name: String(msg.member.name || "").trim().replace(/\s+/g, " ").slice(0, 60),
-          color: String(msg.member.color || "#8a9bb0"),
+          color: String(msg.member.color || "#1e88e5"),
         };
         const nameKey = incoming.name.toLowerCase();
         const byName = incoming.name

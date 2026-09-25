@@ -13,6 +13,10 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-09-25",
     items: [
       {
+        en: "Member colors are stronger and easier to tell apart.",
+        no: "Medlemsfargene er sterkere og lettere å skille fra hverandre.",
+      },
+      {
         en: "The Home Screen icon matches the current palette and shows FamCal plus the group name.",
         no: "Hjem-skjerm-ikonet følger fargepaletten og viser FamCal og gruppenavnet.",
       },
