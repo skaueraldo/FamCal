@@ -13,6 +13,10 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-09-25",
     items: [
       {
+        en: "Group admins can add people by name, who can sign in later with the invite code.",
+        no: "Gruppeadministratorer kan legge til folk med navn, som senere kan logge inn med invitasjonskoden.",
+      },
+      {
         en: "Member colors are stronger and easier to tell apart.",
         no: "Medlemsfargene er sterkere og lettere å skille fra hverandre.",
       },

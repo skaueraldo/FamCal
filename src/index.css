@@ -695,6 +695,16 @@ a,
   margin: 14px 0;
 }
 
+.add-person {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.add-person .error {
+  margin: 0;
+}
+
 .member-row {
   display: flex;
   align-items: center;

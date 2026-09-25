@@ -1,4 +1,4 @@
-import { Copy, RefreshCw, Upload } from "lucide-react";
+import { Copy, Plus, RefreshCw, Upload } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { formatWhen } from "../lib/dates";
 import { initials } from "../lib/id";
@@ -17,6 +17,7 @@ export function GroupView() {
     leaveGroup,
     switchGroup,
     kickMember,
+    addMember,
     makeAdmin,
     setMemberColor,
     importIcsText,
@@ -36,6 +37,8 @@ export function GroupView() {
   const [busy, setBusy] = useState(false);
   const [spondBusy, setSpondBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [newPerson, setNewPerson] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
     setGroupName(group?.name ?? "");
@@ -118,6 +121,18 @@ export function GroupView() {
   const onKick = (id: string, name: string) => {
     if (!window.confirm(t("kickConfirm", { name }))) return;
     kickMember(id);
+  };
+
+  const onAddPerson = (event: FormEvent) => {
+    event.preventDefault();
+    if (!isAdmin) return;
+    const added = addMember(newPerson);
+    if (!added) {
+      setAddError(newPerson.trim() ? t("personAlreadyInGroup") : null);
+      return;
+    }
+    setNewPerson("");
+    setAddError(null);
   };
 
   const statusLabel =
@@ -231,6 +246,27 @@ export function GroupView() {
             );
           })}
         </div>
+        {isAdmin ? (
+          <div className="add-person">
+            <p className="meta">{t("addPersonLede")}</p>
+            <form className="composer two" onSubmit={onAddPerson}>
+              <input
+                value={newPerson}
+                onChange={(e) => {
+                  setNewPerson(e.target.value);
+                  if (addError) setAddError(null);
+                }}
+                placeholder={t("addPersonPlaceholder")}
+                aria-label={t("addPerson")}
+              />
+              <button className="btn" type="submit">
+                <Plus size={18} />
+                {t("addPerson")}
+              </button>
+            </form>
+            {addError ? <p className="error">{addError}</p> : null}
+          </div>
+        ) : null}
         <label className="field">
           <span>{t("renameGroup")}</span>
           <input

@@ -374,6 +374,24 @@ wss.on("connection", async (ws, req) => {
       case "group:rename":
         group.name = String(msg.name || group.name).slice(0, 60);
         break;
+      case "member:add": {
+        const actor = memberFromSocket(ws, group);
+        const incoming = msg.member || {};
+        const name = String(incoming.name || msg.name || "").trim().replace(/\s+/g, " ").slice(0, 60);
+        const id = String(incoming.id || "").trim();
+        if (!actor?.admin || !name || !id) return;
+        const nameKey = name.toLowerCase();
+        if (group.members.some((member) => member.id === id || String(member.name || "").trim().replace(/\s+/g, " ").toLowerCase() === nameKey)) {
+          return;
+        }
+        group.members.push({
+          id,
+          name,
+          color: nextFreeMemberColor(group.members.map((member) => member.color), incoming.color),
+          admin: false,
+        });
+        break;
+      }
       case "member:kick": {
         const actor = memberFromSocket(ws, group);
         const targetId = String(msg.id || "");

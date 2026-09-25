@@ -12,7 +12,7 @@ import { colorFor, freeMemberColor, uid } from "../lib/id";
 import { normalizeColor } from "../lib/events";
 import { applyHomeScreenBrand } from "../lib/branding";
 import { rememberShopItem, seedShopHistory, shopKey } from "../lib/shop";
-import { memberByName, normalizeCode, reconcileProfile } from "../lib/identity";
+import { memberByName, namesMatch, normalizeCode, reconcileProfile } from "../lib/identity";
 import { parseIcs, sourceNameFromIcs } from "../lib/ics";
 import { mapKnownError, t as translate, type Lang, type MessageKey, type Theme } from "../lib/i18n";
 import { clearGroupCache, clearSession, defaultMenu, emptyNotify, firstVisibleTab, loadAccount, loadGroupCache, loadPrefs, saveAccount, saveGroupCache, savePrefs, type MenuPrefs, type MenuSection, type NotifyChannel, type NotifyPrefs } from "../lib/storage";
@@ -42,6 +42,7 @@ interface AppContextValue {
   switchGroup: (code: string) => void;
   leaveGroup: () => void;
   kickMember: (id: string) => void;
+  addMember: (name: string) => boolean;
   makeAdmin: (id: string) => void;
   setMemberColor: (id: string, color: string) => void;
   renameGroup: (name: string) => void;
@@ -399,6 +400,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     patch((g) => ({ ...g, name }), { type: "group:rename", name });
   };
 
+  const addMember = (name: string) => {
+    const cleaned = name.trim().replace(/\s+/g, " ").slice(0, 60);
+    if (!cleaned) return false;
+    const current = group;
+    if (!current || current.members.some((member) => namesMatch(member.name, cleaned))) return false;
+    const member = {
+      id: uid("mem"),
+      name: cleaned,
+      color: freeMemberColor(current.members),
+      admin: false,
+    };
+    patch((g) => {
+      if (g.members.some((entry) => namesMatch(entry.name, cleaned) || entry.id === member.id)) return g;
+      return { ...g, members: [...g.members, member] };
+    }, { type: "member:add", member });
+    return true;
+  };
+
   const kickMember = (id: string) => {
     patch(
       (g) => ({
@@ -650,6 +669,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         switchGroup,
         leaveGroup,
         kickMember,
+        addMember,
         makeAdmin,
         setMemberColor,
         renameGroup,
