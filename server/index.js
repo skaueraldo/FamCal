@@ -7,7 +7,7 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import { calendarFetchUrls, GOOGLE_ICAL_HELP, looksLikeHtml, looksLikeIcs } from "./calendar-url.js";
 import { fetchSpondActivities } from "./spond.js";
-import { createDurableStore, createFileStore, ensureGroupRoles, isColorTaken, mergeGroups, mergeGroupState, nextFreeMemberColor, parseMemberMenu, sanitizeGroup } from "./store.js";
+import { createDurableStore, createFileStore, ensureGroupRoles, groupCreatedAt, isColorTaken, mergeGroups, mergeGroupState, nextFreeMemberColor, parseMemberMenu, sanitizeGroup } from "./store.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
@@ -42,24 +42,6 @@ function ownerKeyOk(got) {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-function normalizeOwnerName(name) {
-  return String(name || "")
-    .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase();
-}
-
-function isOwnerMember(id, name) {
-  const ownerName = normalizeOwnerName(process.env.FAMCAL_OWNER_NAME || "Espen");
-  const incomingName = normalizeOwnerName(name);
-  const incomingId = String(id || "");
-  if (!incomingId || incomingName !== ownerName) return false;
-  return Object.values(groups).some((group) =>
-    (group.members || []).some(
-      (member) => member?.id === incomingId && normalizeOwnerName(member.name) === ownerName,
-    ),
-  );
-}
 const onVercel = Boolean(process.env.VERCEL);
 const dataDir = onVercel ? join("/tmp", "famcal-data") : join(root, "data");
 const dataFile = join(dataDir, "groups.json");
@@ -77,7 +59,10 @@ let groups = {};
 async function hydrate() {
   const stored = await store.read();
   groups = mergeGroups(groups, stored);
-  for (const group of Object.values(groups)) ensureGroupRoles(group);
+  for (const group of Object.values(groups)) {
+    ensureGroupRoles(group);
+    group.createdAt = groupCreatedAt(group);
+  }
 }
 
 let persistQueue = Promise.resolve();
@@ -86,7 +71,10 @@ function persist() {
     .then(async () => {
       const stored = await store.read();
       groups = mergeGroups(groups, stored);
-      for (const group of Object.values(groups)) ensureGroupRoles(group);
+      for (const group of Object.values(groups)) {
+        ensureGroupRoles(group);
+        group.createdAt = groupCreatedAt(group);
+      }
       await store.write(groups);
     })
     .catch((error) => {
@@ -145,6 +133,7 @@ function emptyGroup(code, name, member) {
     todos: [],
     spendings: [],
     sources: [],
+    createdAt: Date.now(),
     updatedAt: Date.now(),
   });
 }
@@ -207,7 +196,7 @@ app.post("/api/groups", async (req, res) => {
 
 app.get("/api/owner/groups", async (req, res) => {
   await hydrate();
-  if (!ownerKeyOk(req.get("x-famcal-owner")) && !isOwnerMember(req.get("x-famcal-member"), req.get("x-famcal-name"))) {
+  if (!ownerKeyOk(req.get("x-famcal-owner"))) {
     res.status(404).json({ error: "Not found" });
     return;
   }
@@ -220,6 +209,7 @@ app.get("/api/owner/groups", async (req, res) => {
         name: String(group.name),
         owner: String(owner?.name || "").trim(),
         members: members.length,
+        createdAt: groupCreatedAt(group),
       };
     })
     .sort((left, right) => left.name.localeCompare(right.name) || right.members - left.members);
