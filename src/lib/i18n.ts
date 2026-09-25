@@ -165,8 +165,16 @@ const en = {
   connecting: "Connecting",
   workingOffline: "Working offline",
   peopleAndSources: "People & sources",
-  shareCodeLede: "Share this code so someone can join the same calendar and shopping list.",
+  shareCodeLede: "Share this code so someone can join the same calendar and shopping list. You can also email the app link and code.",
   copyCode: "Copy code",
+  inviteEmail: "Email",
+  inviteEmailPlaceholder: "name@email.com",
+  sendInvite: "Send invite",
+  inviteEmailInvalid: "Enter a valid email address.",
+  inviteSent: "Your email app is ready to send the invite.",
+  inviteMailSubject: "Join {group} on FamCal",
+  inviteMailBody:
+    "Open FamCal and join {group} with this invite code: {code}\n\n{link}",
   you: " (you)",
   administrator: "Administrator",
   makeAdmin: "Make admin",
@@ -268,6 +276,12 @@ const en = {
   runningAsApp: "FamCal is running from your Home Screen.",
   changelogTitle: "What's new",
   changelogLede: "Changes in FamCal, newest first.",
+  ownerGroupsTitle: "All groups",
+  ownerGroupsLede: "Group names, the group owner, and how many people are in each one.",
+  ownerGroupOwner: "Owner: {name}",
+  ownerGroupMembersOne: "1 person",
+  ownerGroupMembersMany: "{n} people",
+  ownerGroupsEmpty: "No groups yet.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -436,8 +450,16 @@ const no: Record<MessageKey, string> = {
   connecting: "Kobler til",
   workingOffline: "Jobber frakoblet",
   peopleAndSources: "Folk og kilder",
-  shareCodeLede: "Del denne koden så noen kan bli med i samme kalender og handleliste.",
+  shareCodeLede: "Del denne koden så noen kan bli med i samme kalender og handleliste. Du kan også sende applenken og koden på e-post.",
   copyCode: "Kopier kode",
+  inviteEmail: "E-post",
+  inviteEmailPlaceholder: "navn@epost.no",
+  sendInvite: "Send invitasjon",
+  inviteEmailInvalid: "Skriv inn en gyldig e-postadresse.",
+  inviteSent: "E-postappen din er klar til å sende invitasjonen.",
+  inviteMailSubject: "Bli med i {group} på FamCal",
+  inviteMailBody:
+    "Åpne FamCal og bli med i {group} med denne invitasjonskoden: {code}\n\n{link}",
   you: " (deg)",
   administrator: "Administrator",
   makeAdmin: "Gjør til admin",
@@ -539,6 +561,12 @@ const no: Record<MessageKey, string> = {
   runningAsApp: "FamCal kjører fra Hjem-skjermen.",
   changelogTitle: "Hva er nytt",
   changelogLede: "Endringer i FamCal, nyeste først.",
+  ownerGroupsTitle: "Alle grupper",
+  ownerGroupsLede: "Gruppenavn, eieren av gruppen, og hvor mange som er med i hver gruppe.",
+  ownerGroupOwner: "Eier: {name}",
+  ownerGroupMembersOne: "1 person",
+  ownerGroupMembersMany: "{n} personer",
+  ownerGroupsEmpty: "Ingen grupper ennå.",
 };
 
 const dictionaries: Record<Lang, Record<MessageKey, string>> = { en, no };

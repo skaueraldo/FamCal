@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -10,6 +11,55 @@ import { createDurableStore, createFileStore, ensureGroupRoles, isColorTaken, me
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
+
+function loadEnvFile(filePath) {
+  if (!existsSync(filePath)) return;
+  for (const line of readFileSync(filePath, "utf8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq < 1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    if (key && process.env[key] === undefined) process.env[key] = value;
+  }
+}
+
+loadEnvFile(join(root, ".env.local"));
+
+function ownerKeyOk(got) {
+  const expected = String(process.env.FAMCAL_OWNER_KEY || "");
+  const incoming = String(got || "");
+  if (!expected || !incoming) return false;
+  const left = Buffer.from(incoming);
+  const right = Buffer.from(expected);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function normalizeOwnerName(name) {
+  return String(name || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function isOwnerMember(id, name) {
+  const ownerName = normalizeOwnerName(process.env.FAMCAL_OWNER_NAME || "Espen");
+  const incomingName = normalizeOwnerName(name);
+  const incomingId = String(id || "");
+  if (!incomingId || incomingName !== ownerName) return false;
+  return Object.values(groups).some((group) =>
+    (group.members || []).some(
+      (member) => member?.id === incomingId && normalizeOwnerName(member.name) === ownerName,
+    ),
+  );
+}
 const onVercel = Boolean(process.env.VERCEL);
 const dataDir = onVercel ? join("/tmp", "famcal-data") : join(root, "data");
 const dataFile = join(dataDir, "groups.json");
@@ -153,6 +203,27 @@ app.post("/api/groups", async (req, res) => {
   groups[code] = emptyGroup(code, name, member);
   await persist();
   res.json(publicGroup(groups[code]));
+});
+
+app.get("/api/owner/groups", async (req, res) => {
+  await hydrate();
+  if (!ownerKeyOk(req.get("x-famcal-owner")) && !isOwnerMember(req.get("x-famcal-member"), req.get("x-famcal-name"))) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const list = Object.values(groups)
+    .filter((group) => group && group.name)
+    .map((group) => {
+      const members = Array.isArray(group.members) ? group.members : [];
+      const owner = members.find((member) => member?.admin) || members[0];
+      return {
+        name: String(group.name),
+        owner: String(owner?.name || "").trim(),
+        members: members.length,
+      };
+    })
+    .sort((left, right) => left.name.localeCompare(right.name) || right.members - left.members);
+  res.json({ groups: list });
 });
 
 app.get("/api/groups/:code", async (req, res) => {

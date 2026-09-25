@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { inviteCodeFromSearch } from "../lib/identity";
 import { useApp } from "../state/AppState";
 
 type Mode = "create" | "join";
@@ -6,17 +7,20 @@ type Mode = "create" | "join";
 export function GroupAccessForm({
   defaultName = "",
   defaultMode = "join",
+  defaultCode = "",
   onCancel,
 }: {
   defaultName?: string;
   defaultMode?: Mode;
+  defaultCode?: string;
   onCancel?: () => void;
 }) {
   const { startGroup, joinGroup, t, localizeError } = useApp();
-  const [mode, setMode] = useState<Mode>(defaultMode);
+  const invited = defaultCode || inviteCodeFromSearch();
+  const [mode, setMode] = useState<Mode>(invited ? "join" : defaultMode);
   const [name, setName] = useState(defaultName);
   const [groupName, setGroupName] = useState("");
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(invited);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +32,11 @@ export function GroupAccessForm({
     try {
       if (mode === "create") await startGroup(name, groupName.trim() || t("defaultGroupName"));
       else await joinGroup(name, code);
+      if (typeof history !== "undefined" && inviteCodeFromSearch()) {
+        const next = new URL(location.href);
+        next.searchParams.delete("code");
+        history.replaceState({}, "", `${next.pathname}${next.search}${next.hash}`);
+      }
       onCancel?.();
     } catch (err) {
       setError(localizeError(err instanceof Error ? err.message : t("somethingWentWrong")));

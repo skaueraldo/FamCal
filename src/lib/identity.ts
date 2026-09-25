@@ -4,6 +4,26 @@ export function normalizeCode(code: string): string {
   return code.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
 }
 
+export function inviteCodeFromSearch(search = typeof location !== "undefined" ? location.search : ""): string {
+  try {
+    return normalizeCode(new URLSearchParams(search).get("code") || "");
+  } catch {
+    return "";
+  }
+}
+
+export function inviteAppLink(code: string): string {
+  const origin = typeof location !== "undefined" && location.origin ? location.origin : "";
+  const url = new URL(origin || "https://famcal-lilac.vercel.app");
+  const cleaned = normalizeCode(code);
+  if (cleaned) url.searchParams.set("code", cleaned);
+  return url.toString();
+}
+
+export function isInviteEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 export function normalizeName(name: string): string {
   return name.trim().replace(/\s+/g, " ").toLowerCase();
 }
