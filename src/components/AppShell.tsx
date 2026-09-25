@@ -33,7 +33,7 @@ export function AppShell() {
           return (
             <button key={item.id} className={tab === item.id ? "active" : ""} onClick={() => setTab(item.id)}>
               <Icon size={18} />
-              {t(item.label)}
+              <span>{t(item.label)}</span>
             </button>
           );
         })}
@@ -44,13 +44,13 @@ export function AppShell() {
             <h1 className="group-title">{group.name}</h1>
           </header>
         ) : null}
-        {tab === "calendar" ? <CalendarView /> : null}
-        {tab === "dinner" ? <DinnerView /> : null}
-        {tab === "shopping" ? <ShoppingView /> : null}
-        {tab === "todos" ? <TodoView /> : null}
-        {tab === "spendings" ? <SpendingView /> : null}
-        {tab === "wishlist" ? <WishlistView /> : null}
-        {tab === "group" ? <GroupView /> : null}
+        {tab === "calendar" && menu.calendar ? <CalendarView /> : null}
+        {tab === "dinner" && menu.dinner ? <DinnerView /> : null}
+        {tab === "shopping" && menu.shopping ? <ShoppingView /> : null}
+        {tab === "todos" && menu.todos ? <TodoView /> : null}
+        {tab === "spendings" && menu.spendings ? <SpendingView /> : null}
+        {tab === "wishlist" && menu.wishlist ? <WishlistView /> : null}
+        {tab === "group" && menu.group ? <GroupView /> : null}
         {tab === "settings" ? <SettingsView /> : null}
       </div>
     </div>

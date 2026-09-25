@@ -16,8 +16,23 @@ const COLOR_UPGRADES = {
   "#c9b8a0": "#6d4c41",
 };
 
+const MENU_SECTIONS = ["calendar", "dinner", "shopping", "todos", "spendings", "wishlist", "group"];
+
 function asArray(value) {
   return Array.isArray(value) ? value : [];
+}
+
+export function parseMemberMenu(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const menu = {};
+  let seen = false;
+  for (const section of MENU_SECTIONS) {
+    if (Object.prototype.hasOwnProperty.call(raw, section)) {
+      menu[section] = raw[section] === true;
+      seen = true;
+    }
+  }
+  return seen ? menu : undefined;
 }
 
 function normalizeColor(color) {
@@ -195,12 +210,16 @@ export function sanitizeGroup(raw) {
     name: String(raw.name || "Family").trim().slice(0, 60) || "Family",
     members: asArray(raw.members)
       .filter((member) => member && member.id)
-      .map((member) => ({
-        id: String(member.id),
-        name: String(member.name || "").slice(0, 60),
-        color: String(member.color || "#1e88e5"),
-        admin: Boolean(member.admin),
-      })),
+      .map((member) => {
+        const menu = parseMemberMenu(member.menu);
+        return {
+          id: String(member.id),
+          name: String(member.name || "").slice(0, 60),
+          color: String(member.color || "#1e88e5"),
+          admin: Boolean(member.admin),
+          ...(menu ? { menu } : {}),
+        };
+      }),
     kickedIds: asArray(raw.kickedIds).map(String).filter(Boolean),
     events: asArray(raw.events).filter((event) => event && event.id),
     items: asArray(raw.items).filter((item) => item && item.id),

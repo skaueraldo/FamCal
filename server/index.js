@@ -6,7 +6,7 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import { calendarFetchUrls, GOOGLE_ICAL_HELP, looksLikeHtml, looksLikeIcs } from "./calendar-url.js";
 import { fetchSpondActivities } from "./spond.js";
-import { createDurableStore, createFileStore, ensureGroupRoles, isColorTaken, mergeGroups, mergeGroupState, nextFreeMemberColor, sanitizeGroup } from "./store.js";
+import { createDurableStore, createFileStore, ensureGroupRoles, isColorTaken, mergeGroups, mergeGroupState, nextFreeMemberColor, parseMemberMenu, sanitizeGroup } from "./store.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
@@ -419,6 +419,15 @@ wss.on("connection", async (ws, req) => {
         if (target.id !== actor.id && !actor.admin) return;
         if (isColorTaken(group.members, color, target.id)) return;
         target.color = color.toLowerCase();
+        break;
+      }
+      case "member:menu": {
+        const actor = memberFromSocket(ws, group);
+        const target = group.members.find((member) => member.id === String(msg.id || ""));
+        const menu = parseMemberMenu(msg.menu);
+        if (!actor || !target || !menu) return;
+        if (target.id !== actor.id && !actor.admin) return;
+        target.menu = menu;
         break;
       }
       case "event:upsert":
