@@ -6,7 +6,7 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import { calendarFetchUrls, GOOGLE_ICAL_HELP, looksLikeHtml, looksLikeIcs } from "./calendar-url.js";
 import { fetchSpondActivities } from "./spond.js";
-import { createDurableStore, createFileStore, ensureGroupRoles, mergeGroups, sanitizeGroup } from "./store.js";
+import { createDurableStore, createFileStore, ensureGroupRoles, mergeGroups, mergeGroupState, sanitizeGroup } from "./store.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
@@ -68,6 +68,9 @@ function publicGroup(group) {
     ...ensureGroupRoles(group),
     dinners: group.dinners || [],
     wishlists: group.wishlists || [],
+    todos: group.todos || [],
+    spendings: group.spendings || [],
+    shopHistory: group.shopHistory || [],
     sources: (group.sources || []).map((source) => {
       const { password, token, ...safe } = source;
       return safe;
@@ -86,8 +89,11 @@ function emptyGroup(code, name, member) {
     kickedIds: [],
     events: [],
     items: [],
+    shopHistory: [],
     dinners: [],
     wishlists: [],
+    todos: [],
+    spendings: [],
     sources: [],
     updatedAt: Date.now(),
   });
@@ -166,18 +172,10 @@ app.post("/api/groups/restore", async (req, res) => {
   const incoming = sanitizeGroup(req.body?.group);
   if (!incoming) return res.status(400).json({ error: "Could not restore that group" });
   const existing = groups[incoming.code];
-  if (existing) {
-    incoming.kickedIds = [...new Set([...(existing.kickedIds || []), ...(incoming.kickedIds || [])])];
-    const existingAdmins = new Set((existing.members || []).filter((member) => member.admin).map((member) => member.id));
-    incoming.members = incoming.members.map((member) =>
-      existingAdmins.has(member.id) ? { ...member, admin: true } : member,
-    );
-    ensureGroupRoles(incoming);
-  }
-  if (!existing || Number(incoming.updatedAt) >= Number(existing.updatedAt || 0)) {
-    groups[incoming.code] = incoming;
-    await persist();
-  }
+  groups[incoming.code] = existing
+    ? mergeGroupState(existing, incoming, { preserveRicherCollections: true })
+    : incoming;
+  await persist();
   res.json(publicGroup(groups[incoming.code]));
 });
 
@@ -396,10 +394,17 @@ wss.on("connection", async (ws, req) => {
         group.events = group.events.filter((e) => e.id !== msg.id);
         break;
       case "item:upsert":
-        upsert(group.items, msg.item);
+        {
+          const existed = (group.items || []).some((item) => item.id === msg.item?.id);
+          upsert(group.items, msg.item);
+          if (!existed) rememberShop(group, msg.item);
+        }
         break;
       case "item:delete":
         group.items = group.items.filter((i) => i.id !== msg.id);
+        break;
+      case "item:clear":
+        group.items = [];
         break;
       case "dinner:upsert":
         if (!group.dinners) group.dinners = [];
@@ -414,6 +419,20 @@ wss.on("connection", async (ws, req) => {
         break;
       case "wishlist:delete":
         group.wishlists = (group.wishlists || []).filter((w) => w.id !== msg.id);
+        break;
+      case "todos:upsert":
+        if (!group.todos) group.todos = [];
+        upsert(group.todos, msg.list);
+        break;
+      case "todos:delete":
+        group.todos = (group.todos || []).filter((entry) => entry.id !== msg.id);
+        break;
+      case "spendings:upsert":
+        if (!group.spendings) group.spendings = [];
+        upsert(group.spendings, msg.list);
+        break;
+      case "spendings:delete":
+        group.spendings = (group.spendings || []).filter((entry) => entry.id !== msg.id);
         break;
       case "source:upsert":
         upsert(group.sources, msg.source);
@@ -442,6 +461,31 @@ wss.on("connection", async (ws, req) => {
     roomOf(code).delete(ws);
   });
 });
+
+function shopKey(name) {
+  return String(name || "")
+    .trim()
+    .toLocaleLowerCase();
+}
+
+function rememberShop(group, item) {
+  const name = String(item?.name || "").trim();
+  if (!name) return;
+  if (!group.shopHistory) group.shopHistory = [];
+  const key = shopKey(name);
+  const qty = item.qty ? String(item.qty) : undefined;
+  const found = group.shopHistory.find((entry) => shopKey(entry.name) === key);
+  if (found) {
+    found.name = name;
+    found.qty = qty || found.qty;
+    found.lastUsed = Date.now();
+    found.uses = (found.uses || 1) + 1;
+  } else {
+    group.shopHistory.push({ name, qty, lastUsed: Date.now(), uses: 1 });
+  }
+  group.shopHistory.sort((a, b) => (b.lastUsed || 0) - (a.lastUsed || 0));
+  if (group.shopHistory.length > 80) group.shopHistory.length = 80;
+}
 
 function upsert(list, item) {
   if (!item?.id) return;

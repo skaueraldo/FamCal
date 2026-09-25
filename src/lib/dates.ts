@@ -152,6 +152,10 @@ export function buildWeekDays(origin: Date, lang: Lang): MonthCell[] {
   });
 }
 
+export function formatMoney(amount: number, lang: Lang): string {
+  return new Intl.NumberFormat(localeTag(lang), { style: "currency", currency: "NOK" }).format(amount);
+}
+
 export function formatTime(hhmm?: string, lang?: Lang): string {
   if (!hhmm) return "";
   const [h, m] = hhmm.split(":").map(Number);

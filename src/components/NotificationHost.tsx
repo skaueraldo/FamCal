@@ -16,6 +16,8 @@ function isTab(value: unknown): value is Tab {
     value === "calendar" ||
     value === "dinner" ||
     value === "shopping" ||
+    value === "todos" ||
+    value === "spendings" ||
     value === "wishlist" ||
     value === "group" ||
     value === "settings"
@@ -30,6 +32,10 @@ export function NotificationHost() {
   const dinnerStamp = useRef(new Map<string, string>());
   const wishListIds = useRef(new Set<string>());
   const wishItemIds = useRef(new Set<string>());
+  const spendListIds = useRef(new Set<string>());
+  const spendItemIds = useRef(new Set<string>());
+  const todoListIds = useRef(new Set<string>());
+  const todoItemIds = useRef(new Set<string>());
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -47,6 +53,10 @@ export function NotificationHost() {
     dinnerStamp.current = new Map();
     wishListIds.current = new Set();
     wishItemIds.current = new Set();
+    spendListIds.current = new Set();
+    spendItemIds.current = new Set();
+    todoListIds.current = new Set();
+    todoItemIds.current = new Set();
   }, [session?.groupCode, session?.profile.id]);
 
   useEffect(() => {
@@ -61,6 +71,12 @@ export function NotificationHost() {
       dinnerStamp.current = new Map(group.dinners.map((dinner) => [dinner.id, dinner.title]));
       wishListIds.current = new Set(group.wishlists.map((list) => list.id));
       wishItemIds.current = new Set(group.wishlists.flatMap((list) => list.items.map((item) => `${list.id}:${item.id}`)));
+      spendListIds.current = new Set((group.spendings ?? []).map((list) => list.id));
+      spendItemIds.current = new Set(
+        (group.spendings ?? []).flatMap((list) => list.items.map((item) => `${list.id}:${item.id}`)),
+      );
+      todoListIds.current = new Set((group.todos ?? []).map((list) => list.id));
+      todoItemIds.current = new Set((group.todos ?? []).flatMap((list) => list.items.map((item) => `${list.id}:${item.id}`)));
       primed.current = true;
       return;
     }
@@ -161,6 +177,82 @@ export function NotificationHost() {
     } else {
       wishListIds.current = new Set(group.wishlists.map((list) => list.id));
       wishItemIds.current = new Set(group.wishlists.flatMap((list) => list.items.map((item) => `${list.id}:${item.id}`)));
+    }
+
+    if (notify.spendings) {
+      for (const list of group.spendings ?? []) {
+        const isNewList = !spendListIds.current.has(list.id);
+        spendListIds.current.add(list.id);
+        if (isNewList && list.memberId !== me) {
+          const tag = `spendlist:${list.id}`;
+          if (!wasNotified(tag)) {
+            markNotified(tag);
+            void showNotice({
+              title: t("tabSpendings"),
+              body: t("notificationSpendList", { name: memberName(list.memberId), list: list.name }),
+              tag,
+              tab: "spendings",
+            });
+          }
+        }
+        for (const item of list.items) {
+          const key = `${list.id}:${item.id}`;
+          if (spendItemIds.current.has(key)) continue;
+          spendItemIds.current.add(key);
+          if (item.memberId === me) continue;
+          const tag = `spenditem:${key}`;
+          if (wasNotified(tag)) continue;
+          markNotified(tag);
+          void showNotice({
+            title: t("tabSpendings"),
+            body: t("notificationSpendItem", { name: memberName(item.memberId), item: item.name, list: list.name }),
+            tag,
+            tab: "spendings",
+          });
+        }
+      }
+    } else {
+      spendListIds.current = new Set((group.spendings ?? []).map((list) => list.id));
+      spendItemIds.current = new Set(
+        (group.spendings ?? []).flatMap((list) => list.items.map((item) => `${list.id}:${item.id}`)),
+      );
+    }
+
+    if (notify.todos) {
+      for (const list of group.todos ?? []) {
+        const isNewList = !todoListIds.current.has(list.id);
+        todoListIds.current.add(list.id);
+        if (isNewList && list.memberId !== me) {
+          const tag = `todolist:${list.id}`;
+          if (!wasNotified(tag)) {
+            markNotified(tag);
+            void showNotice({
+              title: t("tabTodos"),
+              body: t("notificationTodoList", { name: memberName(list.memberId), list: list.name }),
+              tag,
+              tab: "todos",
+            });
+          }
+        }
+        for (const item of list.items) {
+          const key = `${list.id}:${item.id}`;
+          if (todoItemIds.current.has(key)) continue;
+          todoItemIds.current.add(key);
+          if (item.memberId === me) continue;
+          const tag = `todoitem:${key}`;
+          if (wasNotified(tag)) continue;
+          markNotified(tag);
+          void showNotice({
+            title: t("tabTodos"),
+            body: t("notificationTodoItem", { name: memberName(item.memberId), item: item.name, list: list.name }),
+            tag,
+            tab: "todos",
+          });
+        }
+      }
+    } else {
+      todoListIds.current = new Set((group.todos ?? []).map((list) => list.id));
+      todoItemIds.current = new Set((group.todos ?? []).flatMap((list) => list.items.map((item) => `${list.id}:${item.id}`)));
     }
   }, [group, notify, session, t]);
 

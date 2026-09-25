@@ -1,4 +1,15 @@
+import { MENU_SECTIONS, type MenuSection } from "../lib/storage";
 import { useApp } from "../state/AppState";
+
+const menuLabels: Record<MenuSection, "tabCalendar" | "tabDinner" | "tabShopping" | "tabTodos" | "tabSpendings" | "tabWishlist" | "tabGroup"> = {
+  calendar: "tabCalendar",
+  dinner: "tabDinner",
+  shopping: "tabShopping",
+  todos: "tabTodos",
+  spendings: "tabSpendings",
+  wishlist: "tabWishlist",
+  group: "tabGroup",
+};
 
 function isStandalone() {
   return (
@@ -8,7 +19,7 @@ function isStandalone() {
 }
 
 export function SettingsView() {
-  const { theme, setTheme, language, setLanguage, t } = useApp();
+  const { theme, setTheme, language, setLanguage, menu, setMenuSection, t } = useApp();
   const installed = isStandalone();
 
   return (
@@ -63,6 +74,26 @@ export function SettingsView() {
             <strong>{t("norwegian")}</strong>
             <span>Norsk</span>
           </button>
+        </div>
+
+        <h2 style={{ marginTop: 22 }}>{t("menuTitle")}</h2>
+        <p className="lede" style={{ marginTop: 8 }}>
+          {t("menuLede")}
+        </p>
+        <div className="menu-toggles" role="group" aria-label={t("menuTitle")}>
+          {MENU_SECTIONS.map((section) => {
+            const on = menu[section];
+            return (
+              <label key={section} className={`menu-toggle${on ? " on" : ""}`}>
+                <span>{t(menuLabels[section])}</span>
+                <input
+                  type="checkbox"
+                  checked={on}
+                  onChange={() => setMenuSection(section, !on)}
+                />
+              </label>
+            );
+          })}
         </div>
 
         <h2 style={{ marginTop: 22 }}>{t("addToHomeScreen")}</h2>

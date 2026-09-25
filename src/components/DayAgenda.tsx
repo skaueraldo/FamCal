@@ -1,11 +1,25 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { EVENT_COLORS, eventColor, formatOccurrenceWhen, occurrencesOnDay } from "../lib/events";
 import { uid } from "../lib/id";
-import type { RepeatRule } from "../types";
+import type { CalEvent, RepeatRule } from "../types";
 import { useApp } from "../state/AppState";
+
+const emptyForm = (iso: string) => ({
+  title: "",
+  fromDate: iso,
+  toDate: iso,
+  start: "",
+  end: "",
+  repeat: "none" as RepeatRule | "none",
+  repeatUntil: "",
+  color: "",
+  notes: "",
+});
 
 export function DayAgenda({ iso }: { iso: string }) {
   const { group, session, upsertEvent, deleteEvent, language, t } = useApp();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [fromDate, setFromDate] = useState(iso);
   const [toDate, setToDate] = useState(iso);
@@ -18,33 +32,61 @@ export function DayAgenda({ iso }: { iso: string }) {
   const events = occurrencesOnDay(group?.events ?? [], iso);
   const memberColor = (memberId: string) => group?.members.find((member) => member.id === memberId)?.color ?? "#c45c26";
   const who = (memberId: string) => group?.members.find((member) => member.id === memberId)?.name ?? t("someone");
+  const canChange = (event: CalEvent) => Boolean(session && event.memberId === session.profile.id && !event.sourceId);
 
-  const add = (event: FormEvent) => {
+  const applyForm = (next: ReturnType<typeof emptyForm>) => {
+    setTitle(next.title);
+    setFromDate(next.fromDate);
+    setToDate(next.toDate);
+    setStart(next.start);
+    setEnd(next.end);
+    setRepeat(next.repeat);
+    setRepeatUntil(next.repeatUntil);
+    setColor(next.color);
+    setNotes(next.notes);
+  };
+
+  const resetForm = () => {
+    setEditingId(null);
+    applyForm(emptyForm(iso));
+  };
+
+  const beginEdit = (event: CalEvent) => {
+    setEditingId(event.id);
+    applyForm({
+      title: event.title,
+      fromDate: event.date,
+      toDate: event.endDate && event.endDate >= event.date ? event.endDate : event.date,
+      start: event.start ?? "",
+      end: event.end ?? "",
+      repeat: event.repeat ?? "none",
+      repeatUntil: event.repeatUntil ?? "",
+      color: event.color ?? "",
+      notes: event.notes ?? "",
+    });
+    requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+  };
+
+  const save = (event: FormEvent) => {
     event.preventDefault();
     if (!title.trim() || !session || !fromDate) return;
     const untilDate = toDate && toDate >= fromDate ? toDate : fromDate;
+    const existing = editingId ? group?.events.find((item) => item.id === editingId) : undefined;
+    if (editingId && (!existing || !canChange(existing))) return;
     upsertEvent({
-      id: uid("evt"),
+      id: existing?.id ?? uid("evt"),
       title: title.trim(),
       date: fromDate,
       endDate: untilDate !== fromDate ? untilDate : undefined,
       start: start || undefined,
       end: end || undefined,
       notes: notes.trim() || undefined,
-      memberId: session.profile.id,
+      memberId: existing?.memberId ?? session.profile.id,
       color: color || undefined,
       repeat: repeat === "none" ? undefined : repeat,
       repeatUntil: repeat === "none" ? undefined : repeatUntil || undefined,
     });
-    setTitle("");
-    setFromDate(iso);
-    setToDate(iso);
-    setStart("");
-    setEnd("");
-    setRepeat("none");
-    setRepeatUntil("");
-    setColor("");
-    setNotes("");
+    resetForm();
   };
 
   const onFromDate = (value: string) => {
@@ -58,40 +100,56 @@ export function DayAgenda({ iso }: { iso: string }) {
         <p className="empty">{t("nothingOnThisDay")}</p>
       ) : (
         <div className="event-list">
-          {events.map((occ) => (
-            <div className="event-row" key={`${occ.event.id}:${occ.startDate}:${occ.iso}`}>
-              <i style={{ background: eventColor(occ.event, memberColor(occ.event.memberId)) }} />
-              <div>
-                <strong>{occ.event.title}</strong>
-                <div className="meta">
-                  {formatOccurrenceWhen(occ, language, {
-                    allDay: t("allDay"),
-                    daily: t("repeatDaily"),
-                    weekly: t("repeatWeekly"),
-                    monthly: t("repeatMonthly"),
-                    yearly: t("repeatYearly"),
-                  })}
-                  {` · ${who(occ.event.memberId)}`}
+          {events.map((occ) => {
+            const editable = canChange(occ.event);
+            return (
+              <div
+                className={`event-row${editable ? " editable" : ""}${editingId === occ.event.id ? " editing" : ""}`}
+                key={`${occ.event.id}:${occ.startDate}:${occ.iso}`}
+                onClick={editable ? () => beginEdit(occ.event) : undefined}
+              >
+                <i style={{ background: eventColor(occ.event, memberColor(occ.event.memberId)) }} />
+                <div>
+                  <strong>{occ.event.title}</strong>
+                  <div className="meta">
+                    {formatOccurrenceWhen(occ, language, {
+                      allDay: t("allDay"),
+                      daily: t("repeatDaily"),
+                      weekly: t("repeatWeekly"),
+                      monthly: t("repeatMonthly"),
+                      yearly: t("repeatYearly"),
+                    })}
+                    {` · ${who(occ.event.memberId)}`}
+                  </div>
+                  {occ.event.notes ? <div className="meta">{occ.event.notes}</div> : null}
                 </div>
-                {occ.event.notes ? <div className="meta">{occ.event.notes}</div> : null}
+                {editable ? (
+                  <div className="event-row-actions" onClick={(click) => click.stopPropagation()}>
+                    <button className="btn ghost small" type="button" onClick={() => beginEdit(occ.event)}>
+                      {t("editEvent")}
+                    </button>
+                    <button
+                      className="btn ghost small"
+                      type="button"
+                      title={occ.event.repeat ? t("removeSeriesHint") : undefined}
+                      onClick={() => {
+                        if (editingId === occ.event.id) resetForm();
+                        deleteEvent(occ.event.id);
+                      }}
+                    >
+                      {t("remove")}
+                    </button>
+                  </div>
+                ) : null}
               </div>
-              {occ.event.memberId === session?.profile.id && !occ.event.sourceId ? (
-                <button
-                  className="btn ghost"
-                  title={occ.event.repeat ? t("removeSeriesHint") : undefined}
-                  onClick={() => deleteEvent(occ.event.id)}
-                >
-                  {t("remove")}
-                </button>
-              ) : null}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      <form onSubmit={add}>
+      <form ref={formRef} onSubmit={save}>
         <label className="field">
-          <span>{t("addToSharedCalendar")}</span>
+          <span>{editingId ? t("editEventTitle") : t("addToSharedCalendar")}</span>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("eventPlaceholder")} />
         </label>
         <div className="when-grid">
@@ -132,6 +190,7 @@ export function DayAgenda({ iso }: { iso: string }) {
             </label>
           )}
         </div>
+        {editingId && repeat !== "none" ? <p className="meta edit-series-hint">{t("editSeriesHint")}</p> : null}
         <div className="field">
           <span>{t("eventColor")}</span>
           <div className="color-picks" role="group" aria-label={t("eventColor")}>
@@ -159,9 +218,16 @@ export function DayAgenda({ iso }: { iso: string }) {
           <span>{t("note")}</span>
           <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("optional")} />
         </label>
-        <button className="btn" type="submit">
-          {t("addEvent")}
-        </button>
+        <div className="event-form-actions">
+          <button className="btn" type="submit">
+            {editingId ? t("saveEvent") : t("addEvent")}
+          </button>
+          {editingId ? (
+            <button className="btn secondary" type="button" onClick={resetForm}>
+              {t("cancelEdit")}
+            </button>
+          ) : null}
+        </div>
       </form>
     </>
   );

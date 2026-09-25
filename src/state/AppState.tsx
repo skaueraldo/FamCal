@@ -9,12 +9,13 @@ import {
   type ReactNode,
 } from "react";
 import { colorFor, uid } from "../lib/id";
+import { rememberShopItem, seedShopHistory, shopKey } from "../lib/shop";
 import { memberByName, normalizeCode, reconcileProfile } from "../lib/identity";
 import { parseIcs, sourceNameFromIcs } from "../lib/ics";
 import { mapKnownError, t as translate, type Lang, type MessageKey, type Theme } from "../lib/i18n";
-import { clearGroupCache, clearSession, emptyNotify, loadAccount, loadGroupCache, loadPrefs, saveAccount, saveGroupCache, savePrefs, type NotifyChannel, type NotifyPrefs } from "../lib/storage";
+import { clearGroupCache, clearSession, defaultMenu, emptyNotify, firstVisibleTab, loadAccount, loadGroupCache, loadPrefs, saveAccount, saveGroupCache, savePrefs, type MenuPrefs, type MenuSection, type NotifyChannel, type NotifyPrefs } from "../lib/storage";
 import { SyncClient, createGroup, fetchGroup, fetchIcsUrl, importSpondAccount, refreshSpondAccount, restoreGroup } from "../lib/sync";
-import type { Account, CalEvent, Dinner, Group, Membership, Profile, Session, ShopItem, Source, Tab, Wishlist } from "../types";
+import type { Account, CalEvent, Dinner, Group, Membership, Profile, Session, ShopItem, Source, SpendList, Tab, TodoList, Wishlist } from "../types";
 
 interface AppContextValue {
   tab: Tab;
@@ -25,6 +26,8 @@ interface AppContextValue {
   setLanguage: (language: Lang) => void;
   notify: NotifyPrefs;
   setNotify: (channel: NotifyChannel, on: boolean) => void;
+  menu: MenuPrefs;
+  setMenuSection: (section: MenuSection, on: boolean) => void;
   t: (key: MessageKey, vars?: Record<string, string | number>) => string;
   localizeError: (message: string) => string;
   session: Session | null;
@@ -43,10 +46,15 @@ interface AppContextValue {
   deleteEvent: (id: string) => void;
   upsertItem: (item: ShopItem) => void;
   deleteItem: (id: string) => void;
+  clearItems: () => void;
   upsertDinner: (dinner: Dinner) => void;
   deleteDinner: (id: string) => void;
   upsertWishlist: (list: Wishlist) => void;
   deleteWishlist: (id: string) => void;
+  upsertTodoList: (list: TodoList) => void;
+  deleteTodoList: (id: string) => void;
+  upsertSpendList: (list: SpendList) => void;
+  deleteSpendList: (id: string) => void;
   importIcsText: (raw: string, fileName: string) => number;
   importIcsUrl: (url: string, label?: string) => Promise<number>;
   importSpond: (email: string, password: string) => Promise<number>;
@@ -70,8 +78,11 @@ const emptyGroup = (code: string, name: string, profile: Profile): Group => ({
   kickedIds: [],
   events: [],
   items: [],
+  shopHistory: [],
   dinners: [],
   wishlists: [],
+  todos: [],
+  spendings: [],
   sources: [],
   updatedAt: Date.now(),
 });
@@ -82,6 +93,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const theme = prefs.theme;
   const language = prefs.language;
   const notify = prefs.notify;
+  const menu = prefs.menu ?? defaultMenu();
   const t = (key: MessageKey, vars?: Record<string, string | number>) => translate(language, key, vars);
   const localizeError = (message: string) => mapKnownError(language, message);
   const [account, setAccount] = useState<Account | null>(() => loadAccount());
@@ -104,6 +116,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       kickedIds: next.kickedIds ?? [],
       dinners: next.dinners ?? [],
       wishlists: next.wishlists ?? [],
+      todos: next.todos ?? [],
+      spendings: next.spendings ?? [],
+      shopHistory: seedShopHistory(next.shopHistory, next.items ?? []),
     });
   }, []);
 
@@ -111,7 +126,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.documentElement.dataset.theme = theme;
     document.documentElement.lang = language === "no" ? "nb" : "en";
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", theme === "dark" ? "#161310" : "#f3eee4");
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#10100e" : "#f3f1ed");
   }, [theme, language]);
 
   const setTheme = (next: Theme) => {
@@ -137,6 +152,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return prefsNext;
     });
   };
+
+  const setMenuSection = (section: MenuSection, on: boolean) => {
+    setPrefs((current) => {
+      const menuNext = { ...defaultMenu(), ...current.menu, [section]: on };
+      const prefsNext = { ...current, menu: menuNext };
+      savePrefs(prefsNext);
+      if (!on && tab === section) setTab(firstVisibleTab(menuNext));
+      return prefsNext;
+    });
+  };
+
+  useEffect(() => {
+    if (tab !== "settings" && !menu[tab]) setTab(firstVisibleTab(menu));
+  }, [menu, tab]);
 
   useEffect(() => {
     const client = sync.current;
@@ -323,6 +352,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           members: [...remote.members, { ...profile, admin: false }],
           dinners: remote.dinners ?? [],
           wishlists: remote.wishlists ?? [],
+          todos: remote.todos ?? [],
+          spendings: remote.spendings ?? [],
+          shopHistory: remote.shopHistory ?? [],
           kickedIds: remote.kickedIds ?? [],
           updatedAt: Date.now(),
         };
@@ -398,19 +430,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const upsertItem = (item: ShopItem) => {
-    patch(
-      (g) => ({
+    patch((g) => {
+      const previous = g.items.find((entry) => entry.id === item.id);
+      const added = !previous;
+      const renamed = Boolean(previous && shopKey(previous.name) !== shopKey(item.name));
+      return {
         ...g,
-        items: g.items.some((i) => i.id === item.id)
-          ? g.items.map((i) => (i.id === item.id ? item : i))
-          : [...g.items, item],
-      }),
-      { type: "item:upsert", item },
-    );
+        items: previous ? g.items.map((entry) => (entry.id === item.id ? item : entry)) : [...g.items, item],
+        shopHistory: added || renamed ? rememberShopItem(g.shopHistory ?? [], item.name, item.qty) : (g.shopHistory ?? []),
+      };
+    }, { type: "item:upsert", item });
   };
 
   const deleteItem = (id: string) => {
     patch((g) => ({ ...g, items: g.items.filter((i) => i.id !== id) }), { type: "item:delete", id });
+  };
+
+  const clearItems = () => {
+    patch((g) => ({ ...g, items: [] }), { type: "item:clear" });
   };
 
   const upsertDinner = (dinner: Dinner) => {
@@ -443,6 +480,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteWishlist = (id: string) => {
     patch((g) => ({ ...g, wishlists: (g.wishlists ?? []).filter((w) => w.id !== id) }), { type: "wishlist:delete", id });
+  };
+
+  const upsertTodoList = (list: TodoList) => {
+    patch(
+      (g) => ({
+        ...g,
+        todos: (g.todos ?? []).some((entry) => entry.id === list.id)
+          ? (g.todos ?? []).map((entry) => (entry.id === list.id ? list : entry))
+          : [...(g.todos ?? []), list],
+      }),
+      { type: "todos:upsert", list },
+    );
+  };
+
+  const deleteTodoList = (id: string) => {
+    patch((g) => ({ ...g, todos: (g.todos ?? []).filter((entry) => entry.id !== id) }), { type: "todos:delete", id });
+  };
+
+  const upsertSpendList = (list: SpendList) => {
+    patch(
+      (g) => ({
+        ...g,
+        spendings: (g.spendings ?? []).some((entry) => entry.id === list.id)
+          ? (g.spendings ?? []).map((entry) => (entry.id === list.id ? list : entry))
+          : [...(g.spendings ?? []), list],
+      }),
+      { type: "spendings:upsert", list },
+    );
+  };
+
+  const deleteSpendList = (id: string) => {
+    patch((g) => ({ ...g, spendings: (g.spendings ?? []).filter((entry) => entry.id !== id) }), { type: "spendings:delete", id });
   };
 
   const mergeImported = (source: Source, events: CalEvent[]) => {
@@ -548,6 +617,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setLanguage,
         notify,
         setNotify,
+        menu,
+        setMenuSection,
         t,
         localizeError,
         session,
@@ -566,10 +637,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         deleteEvent,
         upsertItem,
         deleteItem,
+        clearItems,
         upsertDinner,
         deleteDinner,
         upsertWishlist,
         deleteWishlist,
+        upsertTodoList,
+        deleteTodoList,
+        upsertSpendList,
+        deleteSpendList,
         importIcsText,
         importIcsUrl,
         importSpond,
