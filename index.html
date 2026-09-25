@@ -6,7 +6,7 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#f3eee4" />
+    <meta name="theme-color" content="#f3f1ed" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="FamCal" />
@@ -18,11 +18,11 @@
         margin: 0;
         min-height: 100%;
         min-height: 100vh;
-        background: #f3eee4;
+        background: #f3f1ed;
       }
       html[data-theme="dark"],
       html[data-theme="dark"] body {
-        background: #161310;
+        background: #10100e;
       }
       #root {
         min-height: 100%;
@@ -36,14 +36,14 @@
         document.documentElement.dataset.theme = theme;
         document.documentElement.lang = prefs.language === "no" ? "nb" : "en";
         var themeColor = document.querySelector('meta[name="theme-color"]');
-        if (themeColor) themeColor.setAttribute("content", theme === "dark" ? "#161310" : "#f3eee4");
+        if (themeColor) themeColor.setAttribute("content", theme === "dark" ? "#10100e" : "#f3f1ed");
       } catch (e) {}
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Outfit:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Outfit:wght@400;500;600;700&display=swap"
       media="print"
       onload="this.media='all'"
     />

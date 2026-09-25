@@ -4,10 +4,12 @@ import { notificationsSupported, requestNotificationPermission } from "../lib/no
 import type { NotifyChannel } from "../lib/storage";
 import { useApp } from "../state/AppState";
 
-const labels: Record<NotifyChannel, "notifyCalendar" | "notifyDinner" | "notifyShopping" | "notifyWishlist"> = {
+const labels: Record<NotifyChannel, "notifyCalendar" | "notifyDinner" | "notifyShopping" | "notifyTodos" | "notifySpendings" | "notifyWishlist"> = {
   calendar: "notifyCalendar",
   dinner: "notifyDinner",
   shopping: "notifyShopping",
+  todos: "notifyTodos",
+  spendings: "notifySpendings",
   wishlist: "notifyWishlist",
 };
 

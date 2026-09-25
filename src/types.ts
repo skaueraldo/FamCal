@@ -1,4 +1,4 @@
-export type Tab = "calendar" | "dinner" | "shopping" | "wishlist" | "group" | "settings";
+export type Tab = "calendar" | "dinner" | "shopping" | "todos" | "spendings" | "wishlist" | "group" | "settings";
 
 export interface Member {
   id: string;
@@ -35,6 +35,13 @@ export interface ShopItem {
   createdAt: number;
 }
 
+export interface ShopHistoryEntry {
+  name: string;
+  qty?: string;
+  lastUsed: number;
+  uses: number;
+}
+
 export interface Source {
   id: string;
   name: string;
@@ -68,6 +75,40 @@ export interface Wishlist {
   items: WishItem[];
 }
 
+export interface TodoItem {
+  id: string;
+  name: string;
+  done: boolean;
+  memberId: string;
+  createdAt: number;
+}
+
+export interface TodoList {
+  id: string;
+  name: string;
+  memberId: string;
+  createdAt: number;
+  items: TodoItem[];
+}
+
+export interface SpendItem {
+  id: string;
+  date: string;
+  name: string;
+  cost: number;
+  memberId: string;
+  spenderName: string;
+  createdAt: number;
+}
+
+export interface SpendList {
+  id: string;
+  name: string;
+  memberId: string;
+  createdAt: number;
+  items: SpendItem[];
+}
+
 export interface Group {
   code: string;
   name: string;
@@ -75,8 +116,11 @@ export interface Group {
   kickedIds?: string[];
   events: CalEvent[];
   items: ShopItem[];
+  shopHistory: ShopHistoryEntry[];
   dinners: Dinner[];
   wishlists: Wishlist[];
+  todos: TodoList[];
+  spendings: SpendList[];
   sources: Source[];
   updatedAt: number;
 }

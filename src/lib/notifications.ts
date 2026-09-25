@@ -6,7 +6,7 @@ const TIMED_UNTIL_MS = 2 * 60 * 1000;
 const ALL_DAY_UNTIL_MS = 30 * 60 * 1000;
 const MAX_TAGS = 400;
 
-export type NoticeTab = "calendar" | "dinner" | "shopping" | "wishlist";
+export type NoticeTab = "calendar" | "dinner" | "shopping" | "todos" | "spendings" | "wishlist";
 
 export interface Notice {
   title: string;

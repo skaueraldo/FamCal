@@ -1,11 +1,13 @@
 import { Check, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
-import { useApp } from "../state/AppState";
 import { uid } from "../lib/id";
+import { suggestShopItems } from "../lib/shop";
+import { useApp } from "../state/AppState";
+import type { ShopHistoryEntry } from "../types";
 import { NotifyToggle } from "./NotifyToggle";
 
 export function ShoppingView() {
-  const { group, session, upsertItem, deleteItem, t } = useApp();
+  const { group, session, upsertItem, deleteItem, clearItems, t } = useApp();
   const [name, setName] = useState("");
   const [qty, setQty] = useState("");
 
@@ -13,22 +15,34 @@ export function ShoppingView() {
     () => [...(group?.items ?? [])].sort((a, b) => Number(a.done) - Number(b.done) || b.createdAt - a.createdAt),
     [group?.items],
   );
+  const suggestions = useMemo(
+    () => suggestShopItems(group?.shopHistory ?? [], group?.items ?? [], name),
+    [group?.items, group?.shopHistory, name],
+  );
 
   const who = (id: string) => group?.members.find((m) => m.id === id)?.name ?? t("someone");
 
-  const add = (event: FormEvent) => {
-    event.preventDefault();
-    if (!name.trim() || !session) return;
+  const addNamed = (itemName: string, itemQty?: string) => {
+    if (!itemName.trim() || !session) return;
     upsertItem({
       id: uid("shop"),
-      name: name.trim(),
-      qty: qty.trim() || undefined,
+      name: itemName.trim(),
+      qty: itemQty?.trim() || undefined,
       done: false,
       memberId: session.profile.id,
       createdAt: Date.now(),
     });
     setName("");
     setQty("");
+  };
+
+  const add = (event: FormEvent) => {
+    event.preventDefault();
+    addNamed(name, qty);
+  };
+
+  const addSuggestion = (entry: ShopHistoryEntry) => {
+    addNamed(entry.name, qty.trim() || entry.qty);
   };
 
   return (
@@ -58,10 +72,35 @@ export function ShoppingView() {
           </button>
         </form>
 
+        {suggestions.length > 0 ? (
+          <div className="shop-suggest">
+            <div className="meta">{t("shopSuggestions")}</div>
+            <div className="shop-suggest-list">
+              {suggestions.map((entry) => (
+                <button
+                  key={entry.name}
+                  type="button"
+                  className="shop-suggest-chip"
+                  aria-label={t("addSuggestedItem", { name: entry.name })}
+                  onClick={() => addSuggestion(entry)}
+                >
+                  {entry.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         {items.length === 0 ? (
           <p className="empty">{t("emptyList")}</p>
         ) : (
           <div className="shop-list">
+            <div className="shop-actions">
+              <button className="btn danger small" type="button" onClick={clearItems}>
+                <Trash2 size={16} />
+                {t("emptyShoppingList")}
+              </button>
+            </div>
             {items.map((item) => (
               <div className={`shop-item${item.done ? " done" : ""}`} key={item.id}>
                 <button

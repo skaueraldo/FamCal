@@ -1,29 +1,77 @@
 import type { Lang, Theme } from "./i18n";
 import { detectLang } from "./i18n";
 import { normalizeCode } from "./identity";
-import type { Account, Group, Membership, Session } from "../types";
+import type { Account, Group, Membership, Session, Tab } from "../types";
 
 const KEY = "famcal.session";
 const PREFS_KEY = "famcal.prefs";
 const groupKey = (code: string) => `famcal.group.${code.toUpperCase()}`;
 
-export type NotifyChannel = "calendar" | "dinner" | "shopping" | "wishlist";
+export type NotifyChannel = "calendar" | "dinner" | "shopping" | "todos" | "spendings" | "wishlist";
 
 export interface NotifyPrefs {
   calendar: boolean;
   dinner: boolean;
   shopping: boolean;
+  todos: boolean;
+  spendings: boolean;
   wishlist: boolean;
 }
+
+export type MenuSection = Exclude<Tab, "settings">;
+
+export const MENU_SECTIONS: MenuSection[] = [
+  "calendar",
+  "dinner",
+  "shopping",
+  "todos",
+  "spendings",
+  "wishlist",
+  "group",
+];
+
+export type MenuPrefs = Record<MenuSection, boolean>;
 
 export interface Prefs {
   theme: Theme;
   language: Lang;
   notify: NotifyPrefs;
+  menu: MenuPrefs;
 }
 
 export function emptyNotify(): NotifyPrefs {
-  return { calendar: false, dinner: false, shopping: false, wishlist: false };
+  return { calendar: false, dinner: false, shopping: false, todos: false, spendings: false, wishlist: false };
+}
+
+export function defaultMenu(): MenuPrefs {
+  return {
+    calendar: true,
+    dinner: true,
+    shopping: true,
+    todos: true,
+    spendings: true,
+    wishlist: true,
+    group: true,
+  };
+}
+
+export function parseMenu(raw: unknown): MenuPrefs {
+  const defaults = defaultMenu();
+  if (!raw || typeof raw !== "object") return defaults;
+  const src = raw as Record<string, unknown>;
+  return {
+    calendar: src.calendar !== false,
+    dinner: src.dinner !== false,
+    shopping: src.shopping !== false,
+    todos: src.todos !== false,
+    spendings: src.spendings !== false,
+    wishlist: src.wishlist !== false,
+    group: src.group !== false,
+  };
+}
+
+export function firstVisibleTab(menu: MenuPrefs): Tab {
+  return MENU_SECTIONS.find((section) => menu[section]) ?? "settings";
 }
 
 function parseNotify(parsed: Partial<Prefs> & { notifications?: boolean }): NotifyPrefs {
@@ -33,11 +81,13 @@ function parseNotify(parsed: Partial<Prefs> & { notifications?: boolean }): Noti
       calendar: raw.calendar === true,
       dinner: raw.dinner === true,
       shopping: raw.shopping === true,
+      todos: raw.todos === true,
+      spendings: raw.spendings === true,
       wishlist: raw.wishlist === true,
     };
   }
   if (parsed.notifications === true) {
-    return { calendar: true, dinner: false, shopping: true, wishlist: false };
+    return { calendar: true, dinner: false, shopping: true, todos: false, spendings: false, wishlist: false };
   }
   return emptyNotify();
 }
@@ -51,12 +101,13 @@ export function loadPrefs(): Prefs {
         theme: parsed.theme === "dark" ? "dark" : "light",
         language: parsed.language === "no" ? "no" : parsed.language === "en" ? "en" : detectLang(),
         notify: parseNotify(parsed),
+        menu: parseMenu(parsed.menu),
       };
     }
   } catch {
     /* ignore */
   }
-  return { theme: "light", language: detectLang(), notify: emptyNotify() };
+  return { theme: "light", language: detectLang(), notify: emptyNotify(), menu: defaultMenu() };
 }
 
 export function savePrefs(prefs: Prefs): void {
@@ -140,9 +191,12 @@ export function loadGroupCache(code: string): Group | null {
       ...parsed,
       dinners: parsed.dinners ?? [],
       wishlists: parsed.wishlists ?? [],
+      todos: parsed.todos ?? [],
+      spendings: parsed.spendings ?? [],
       sources: parsed.sources ?? [],
       events: parsed.events ?? [],
       items: parsed.items ?? [],
+      shopHistory: parsed.shopHistory ?? [],
       members: parsed.members ?? [],
       kickedIds: parsed.kickedIds ?? [],
     };
