@@ -17,7 +17,7 @@ const emptyForm = (iso: string, memberId = "") => ({
   memberId,
 });
 
-export function DayAgenda({ iso }: { iso: string }) {
+export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boolean }) {
   const { group, session, upsertEvent, deleteEvent, language, t } = useApp();
   const formRef = useRef<HTMLFormElement>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -99,63 +99,67 @@ export function DayAgenda({ iso }: { iso: string }) {
   };
 
   return (
-    <>
-      {events.length === 0 ? (
-        <p className="empty">{t("nothingOnThisDay")}</p>
-      ) : (
-        <div className="event-list">
-          {events.map((occ) => {
-            const editable = canChange(occ.event);
-            return (
-              <div
-                className={`event-row${editable ? " editable" : ""}${editingId === occ.event.id ? " editing" : ""}`}
-                key={`${occ.event.id}:${occ.startDate}:${occ.iso}`}
-                onClick={editable ? () => beginEdit(occ.event) : undefined}
-              >
-                <i style={{ background: memberColor(occ.event.memberId) }} />
-                <div>
-                  <strong>{occ.event.title}</strong>
-                  <div className="meta">
-                    {formatOccurrenceWhen(occ, language, {
-                      allDay: t("allDay"),
-                      daily: t("repeatDaily"),
-                      weekly: t("repeatWeekly"),
-                      monthly: t("repeatMonthly"),
-                      yearly: t("repeatYearly"),
-                    })}
-                    {` · ${who(occ.event.memberId)}`}
+    <div className="day-agenda-stack">
+      <div className={`card day-events${isToday ? " today" : ""}`}>
+        <h2>{t("eventsOnThisDay")}</h2>
+        {events.length === 0 ? (
+          <p className="empty">{t("nothingOnThisDay")}</p>
+        ) : (
+          <div className="event-list">
+            {events.map((occ) => {
+              const editable = canChange(occ.event);
+              return (
+                <div
+                  className={`event-row${editable ? " editable" : ""}${editingId === occ.event.id ? " editing" : ""}`}
+                  key={`${occ.event.id}:${occ.startDate}:${occ.iso}`}
+                  onClick={editable ? () => beginEdit(occ.event) : undefined}
+                >
+                  <i style={{ background: memberColor(occ.event.memberId) }} />
+                  <div>
+                    <strong>{occ.event.title}</strong>
+                    <div className="meta">
+                      {formatOccurrenceWhen(occ, language, {
+                        allDay: t("allDay"),
+                        daily: t("repeatDaily"),
+                        weekly: t("repeatWeekly"),
+                        monthly: t("repeatMonthly"),
+                        yearly: t("repeatYearly"),
+                      })}
+                      {` · ${who(occ.event.memberId)}`}
+                    </div>
+                    {occ.event.notes ? <div className="meta">{occ.event.notes}</div> : null}
                   </div>
-                  {occ.event.notes ? <div className="meta">{occ.event.notes}</div> : null}
-                </div>
-                {editable ? (
-                  <div className="event-row-actions" onClick={(click) => click.stopPropagation()}>
-                    <button className="btn ghost small" type="button" onClick={() => beginEdit(occ.event)}>
-                      {t("editEvent")}
-                    </button>
-                    {canRemove(occ.event) ? (
-                      <button
-                        className="btn ghost small"
-                        type="button"
-                        title={occ.event.repeat ? t("removeSeriesHint") : undefined}
-                        onClick={() => {
-                          if (editingId === occ.event.id) resetForm();
-                          deleteEvent(occ.event.id);
-                        }}
-                      >
-                        {t("remove")}
+                  {editable ? (
+                    <div className="event-row-actions" onClick={(click) => click.stopPropagation()}>
+                      <button className="btn ghost small" type="button" onClick={() => beginEdit(occ.event)}>
+                        {t("editEvent")}
                       </button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      )}
+                      {canRemove(occ.event) ? (
+                        <button
+                          className="btn ghost small"
+                          type="button"
+                          title={occ.event.repeat ? t("removeSeriesHint") : undefined}
+                          onClick={() => {
+                            if (editingId === occ.event.id) resetForm();
+                            deleteEvent(occ.event.id);
+                          }}
+                        >
+                          {t("remove")}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-      <form ref={formRef} onSubmit={save}>
+      <form ref={formRef} className={`card day-compose${editingId ? " editing" : ""}`} onSubmit={save}>
+        <h2>{editingId ? t("editEventTitle") : t("addToSharedCalendar")}</h2>
         <label className="field">
-          <span>{editingId ? t("editEventTitle") : t("addToSharedCalendar")}</span>
+          <span>{t("eventTitle")}</span>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("eventPlaceholder")} />
         </label>
         <div className="when-grid">
@@ -218,6 +222,6 @@ export function DayAgenda({ iso }: { iso: string }) {
           ) : null}
         </div>
       </form>
-    </>
+    </div>
   );
 }

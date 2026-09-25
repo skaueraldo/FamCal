@@ -13,6 +13,14 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-09-25",
     items: [
       {
+        en: "Today and tomorrow show existing events apart from the form for adding a new one.",
+        no: "I dag og i morgen viser eksisterende hendelser atskilt fra skjemaet for å legge til en ny.",
+      },
+      {
+        en: "The menu stays on one row, with an accordion when more sections need space.",
+        no: "Menyen holder seg på én rad, med et trekkspill når flere seksjoner trenger plass.",
+      },
+      {
         en: "Sections you switch off in Settings stay hidden until you switch them on again.",
         no: "Seksjoner du slår av i Innstillinger forblir skjult til du slår dem på igjen.",
       },

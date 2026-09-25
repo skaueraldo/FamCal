@@ -160,9 +160,7 @@ export function CalendarView() {
       </div>
 
       {view === "day" || view === "tomorrow" ? (
-        <div className={`card day-agenda${focus === todayIso ? " today" : ""}`}>
-          <DayAgenda key={focus} iso={focus} />
-        </div>
+        <DayAgenda key={focus} iso={focus} isToday={focus === todayIso} />
       ) : null}
 
       {view === "week" ? (
