@@ -1,0 +1,22 @@
+---
+description: Keep the Settings changelog current after every change
+alwaysApply: true
+---
+
+# Changelog
+
+`src/lib/changelog.ts` is the user-facing changelog on Settings. Update it in the same turn as any user-visible change.
+
+- If the newest entry is not today's date (from user_info), prepend a new `{ date, items }` object.
+- If today's entry already exists, **prepend** a new bullet to that day's `items`.
+- Write both `en` and `no`. One short sentence each. Describe the outcome, not files.
+- Do this for UI, behavior, copy, and settings. Skip only when nothing a person using the app would notice.
+- Never ship a user-visible change without the matching changelog bullet.
+
+```ts
+// Same day: prepend to the first entry's items
+items: [
+  { en: "Wish list names use a full-width field.", no: "Ønskelistenavn bruker et felt i full bredde." },
+  // existing bullets...
+]
+```

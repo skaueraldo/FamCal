@@ -2,7 +2,23 @@ import type { CalEvent, RepeatRule } from "../types";
 import { addDays, formatDayShort, formatTime, parseISODate, toISODate } from "./dates";
 import type { Lang } from "./i18n";
 
-export const EVENT_COLORS = ["#c45c26", "#3d6b8a", "#4a6b4e", "#a63d4a", "#8a5a2b", "#5a4f8a", "#2f6f6a", "#c45c7a", "#2f5f4a", "#b87333"];
+export const EVENT_COLORS = ["#8a9bb0", "#7d9b88", "#c4a4b0", "#a8b8c8", "#d4b4a0", "#9aa8c4", "#b8a7d4", "#7eb8b0", "#d4a5a5", "#c9b8a0"];
+
+export function normalizeColor(color: string | undefined): string {
+  const value = String(color || "").trim();
+  return /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : "";
+}
+
+export function nextFreeMemberColor(used: Iterable<string>, keep = ""): string {
+  const taken = new Set([...used].map((color) => normalizeColor(color)).filter(Boolean));
+  const kept = normalizeColor(keep);
+  if (kept && EVENT_COLORS.includes(kept) && !taken.has(kept)) return kept;
+  return EVENT_COLORS.find((color) => !taken.has(color)) ?? EVENT_COLORS[0];
+}
+
+export function memberColorOf(members: { id: string; color?: string }[] | undefined, memberId: string, fallback = EVENT_COLORS[0]): string {
+  return normalizeColor(members?.find((member) => member.id === memberId)?.color) || fallback;
+}
 
 export interface EventOccurrence {
   event: CalEvent;
@@ -72,10 +88,6 @@ export function groupOccurrencesByDay(events: CalEvent[], from: string, to: stri
     map.set(occ.iso, list);
   }
   return map;
-}
-
-export function eventColor(event: CalEvent, fallback: string): string {
-  return event.color && /^#[0-9a-fA-F]{6}$/.test(event.color) ? event.color : fallback;
 }
 
 export function occurrenceEndDate(occ: EventOccurrence): string {

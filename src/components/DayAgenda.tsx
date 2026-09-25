@@ -1,10 +1,11 @@
 import { useRef, useState, type FormEvent } from "react";
-import { EVENT_COLORS, eventColor, formatOccurrenceWhen, occurrencesOnDay } from "../lib/events";
+import { formatOccurrenceWhen, memberColorOf, occurrencesOnDay } from "../lib/events";
 import { uid } from "../lib/id";
 import type { CalEvent, RepeatRule } from "../types";
 import { useApp } from "../state/AppState";
+import { MemberSelect } from "./MemberSelect";
 
-const emptyForm = (iso: string) => ({
+const emptyForm = (iso: string, memberId = "") => ({
   title: "",
   fromDate: iso,
   toDate: iso,
@@ -12,8 +13,8 @@ const emptyForm = (iso: string) => ({
   end: "",
   repeat: "none" as RepeatRule | "none",
   repeatUntil: "",
-  color: "",
   notes: "",
+  memberId,
 });
 
 export function DayAgenda({ iso }: { iso: string }) {
@@ -27,12 +28,16 @@ export function DayAgenda({ iso }: { iso: string }) {
   const [end, setEnd] = useState("");
   const [repeat, setRepeat] = useState<RepeatRule | "none">("none");
   const [repeatUntil, setRepeatUntil] = useState("");
-  const [color, setColor] = useState("");
   const [notes, setNotes] = useState("");
+  const [memberId, setMemberId] = useState(session?.profile.id ?? "");
   const events = occurrencesOnDay(group?.events ?? [], iso);
-  const memberColor = (memberId: string) => group?.members.find((member) => member.id === memberId)?.color ?? "#c45c26";
-  const who = (memberId: string) => group?.members.find((member) => member.id === memberId)?.name ?? t("someone");
-  const canChange = (event: CalEvent) => Boolean(session && event.memberId === session.profile.id && !event.sourceId);
+  const members = group?.members ?? [];
+  const isAdmin = Boolean(members.find((member) => member.id === session?.profile.id)?.admin);
+  const memberColor = (id: string) => memberColorOf(members, id);
+  const who = (id: string) => members.find((member) => member.id === id)?.name ?? t("someone");
+  const canChange = (event: CalEvent) => Boolean(session && !event.sourceId);
+  const canRemove = (event: CalEvent) =>
+    Boolean(session && !event.sourceId && (event.memberId === session.profile.id || isAdmin));
 
   const applyForm = (next: ReturnType<typeof emptyForm>) => {
     setTitle(next.title);
@@ -42,13 +47,13 @@ export function DayAgenda({ iso }: { iso: string }) {
     setEnd(next.end);
     setRepeat(next.repeat);
     setRepeatUntil(next.repeatUntil);
-    setColor(next.color);
     setNotes(next.notes);
+    setMemberId(next.memberId || session?.profile.id || "");
   };
 
   const resetForm = () => {
     setEditingId(null);
-    applyForm(emptyForm(iso));
+    applyForm(emptyForm(iso, session?.profile.id ?? ""));
   };
 
   const beginEdit = (event: CalEvent) => {
@@ -61,8 +66,8 @@ export function DayAgenda({ iso }: { iso: string }) {
       end: event.end ?? "",
       repeat: event.repeat ?? "none",
       repeatUntil: event.repeatUntil ?? "",
-      color: event.color ?? "",
       notes: event.notes ?? "",
+      memberId: event.memberId,
     });
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   };
@@ -81,8 +86,7 @@ export function DayAgenda({ iso }: { iso: string }) {
       start: start || undefined,
       end: end || undefined,
       notes: notes.trim() || undefined,
-      memberId: existing?.memberId ?? session.profile.id,
-      color: color || undefined,
+      memberId: members.some((member) => member.id === memberId) ? memberId : session.profile.id,
       repeat: repeat === "none" ? undefined : repeat,
       repeatUntil: repeat === "none" ? undefined : repeatUntil || undefined,
     });
@@ -108,7 +112,7 @@ export function DayAgenda({ iso }: { iso: string }) {
                 key={`${occ.event.id}:${occ.startDate}:${occ.iso}`}
                 onClick={editable ? () => beginEdit(occ.event) : undefined}
               >
-                <i style={{ background: eventColor(occ.event, memberColor(occ.event.memberId)) }} />
+                <i style={{ background: memberColor(occ.event.memberId) }} />
                 <div>
                   <strong>{occ.event.title}</strong>
                   <div className="meta">
@@ -128,17 +132,19 @@ export function DayAgenda({ iso }: { iso: string }) {
                     <button className="btn ghost small" type="button" onClick={() => beginEdit(occ.event)}>
                       {t("editEvent")}
                     </button>
-                    <button
-                      className="btn ghost small"
-                      type="button"
-                      title={occ.event.repeat ? t("removeSeriesHint") : undefined}
-                      onClick={() => {
-                        if (editingId === occ.event.id) resetForm();
-                        deleteEvent(occ.event.id);
-                      }}
-                    >
-                      {t("remove")}
-                    </button>
+                    {canRemove(occ.event) ? (
+                      <button
+                        className="btn ghost small"
+                        type="button"
+                        title={occ.event.repeat ? t("removeSeriesHint") : undefined}
+                        onClick={() => {
+                          if (editingId === occ.event.id) resetForm();
+                          deleteEvent(occ.event.id);
+                        }}
+                      >
+                        {t("remove")}
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -191,29 +197,12 @@ export function DayAgenda({ iso }: { iso: string }) {
           )}
         </div>
         {editingId && repeat !== "none" ? <p className="meta edit-series-hint">{t("editSeriesHint")}</p> : null}
-        <div className="field">
-          <span>{t("eventColor")}</span>
-          <div className="color-picks" role="group" aria-label={t("eventColor")}>
-            <button
-              type="button"
-              className={`color-pick auto${color === "" ? " active" : ""}`}
-              aria-label={t("colorAutomatic")}
-              aria-pressed={color === ""}
-              onClick={() => setColor("")}
-            />
-            {EVENT_COLORS.map((swatch) => (
-              <button
-                key={swatch}
-                type="button"
-                className={`color-pick${color === swatch ? " active" : ""}`}
-                style={{ background: swatch }}
-                aria-label={swatch}
-                aria-pressed={color === swatch}
-                onClick={() => setColor(swatch)}
-              />
-            ))}
-          </div>
-        </div>
+        {members.length ? (
+          <label className="field">
+            <span>{t("assignTo")}</span>
+            <MemberSelect value={memberId || session?.profile.id || ""} onChange={setMemberId} members={members} label={t("assignTo")} />
+          </label>
+        ) : null}
         <label className="field">
           <span>{t("note")}</span>
           <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("optional")} />

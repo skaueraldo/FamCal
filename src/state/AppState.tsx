@@ -8,7 +8,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { colorFor, uid } from "../lib/id";
+import { colorFor, freeMemberColor, uid } from "../lib/id";
+import { normalizeColor } from "../lib/events";
+import { applyHomeScreenBrand } from "../lib/branding";
 import { rememberShopItem, seedShopHistory, shopKey } from "../lib/shop";
 import { memberByName, normalizeCode, reconcileProfile } from "../lib/identity";
 import { parseIcs, sourceNameFromIcs } from "../lib/ics";
@@ -41,6 +43,7 @@ interface AppContextValue {
   leaveGroup: () => void;
   kickMember: (id: string) => void;
   makeAdmin: (id: string) => void;
+  setMemberColor: (id: string, color: string) => void;
   renameGroup: (name: string) => void;
   upsertEvent: (event: CalEvent) => void;
   deleteEvent: (id: string) => void;
@@ -126,8 +129,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     document.documentElement.dataset.theme = theme;
     document.documentElement.lang = language === "no" ? "nb" : "en";
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", theme === "dark" ? "#10100e" : "#f3f1ed");
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#111111" : "#f7f7f5");
   }, [theme, language]);
+
+  useEffect(() => {
+    void applyHomeScreenBrand(group?.name);
+  }, [group?.name]);
 
   const setTheme = (next: Theme) => {
     setPrefs((current) => {
@@ -343,7 +350,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       : {
           id: uid("mem"),
           name: name.trim().replace(/\s+/g, " "),
-          color: colorFor(remote.members.length),
+          color: freeMemberColor(remote.members),
         };
     const next = existing
       ? remote
@@ -411,6 +418,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }),
       { type: "member:admin", id },
     );
+  };
+
+  const setMemberColor = (id: string, color: string) => {
+    const next = normalizeColor(color);
+    if (!next) return;
+    patch((g) => {
+      if (g.members.some((member) => member.id !== id && normalizeColor(member.color) === next)) return g;
+      return {
+        ...g,
+        members: g.members.map((member) => (member.id === id ? { ...member, color: next } : member)),
+      };
+    }, { type: "member:color", id, color: next });
   };
 
   const upsertEvent = (event: CalEvent) => {
@@ -632,6 +651,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         leaveGroup,
         kickMember,
         makeAdmin,
+        setMemberColor,
         renameGroup,
         upsertEvent,
         deleteEvent,

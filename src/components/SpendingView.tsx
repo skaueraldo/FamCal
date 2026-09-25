@@ -1,8 +1,10 @@
 import { Plus, Trash2 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState, type CSSProperties, type FormEvent } from "react";
 import { formatDayShort, formatMoney, toISODate } from "../lib/dates";
+import { memberColorOf } from "../lib/events";
 import { uid } from "../lib/id";
 import { useApp } from "../state/AppState";
+import { MemberSelect } from "./MemberSelect";
 import { NotifyToggle } from "./NotifyToggle";
 
 interface SpendDraft {
@@ -27,9 +29,11 @@ function emptyDraft(memberId: string): SpendDraft {
 export function SpendingView() {
   const { group, session, language, t, upsertSpendList, deleteSpendList } = useApp();
   const [listName, setListName] = useState("");
+  const [listMemberId, setListMemberId] = useState(session?.profile.id ?? "");
   const [drafts, setDrafts] = useState<Record<string, SpendDraft>>({});
   const lists = [...(group?.spendings ?? [])].sort((a, b) => b.createdAt - a.createdAt);
   const members = group?.members ?? [];
+  const memberColor = (id: string) => memberColorOf(members, id);
 
   const draftFor = (listId: string): SpendDraft =>
     drafts[listId] ?? emptyDraft(session?.profile.id ?? members[0]?.id ?? "");
@@ -37,10 +41,11 @@ export function SpendingView() {
   const addList = (event: FormEvent) => {
     event.preventDefault();
     if (!listName.trim() || !session) return;
+    const owner = members.some((member) => member.id === listMemberId) ? listMemberId : session.profile.id;
     upsertSpendList({
       id: uid("spend"),
       name: listName.trim(),
-      memberId: session.profile.id,
+      memberId: owner,
       createdAt: Date.now(),
       items: [],
     });
@@ -90,7 +95,7 @@ export function SpendingView() {
       <div className="topbar">
         <div className="topbar-copy">
           <div className="eyebrow">{t("spendingsEyebrow")}</div>
-          <h1>{t("spendingsTitle")}</h1>
+          <h2>{t("spendingsTitle")}</h2>
         </div>
         <NotifyToggle channel="spendings" />
       </div>
@@ -99,16 +104,25 @@ export function SpendingView() {
         <p className="lede" style={{ marginTop: 0 }}>
           {t("spendingsLede")}
         </p>
-        <form className="composer two" onSubmit={addList}>
+        <form className="composer assign" onSubmit={addList}>
           <input
+            className="list-name"
             value={listName}
             onChange={(e) => setListName(e.target.value)}
             placeholder={t("spendingsNamePlaceholder")}
           />
-          <button className="btn" type="submit">
-            <Plus size={18} />
-            {t("createSpendingsList")}
-          </button>
+          <div className="composer-tools">
+            <MemberSelect
+              value={listMemberId || session?.profile.id || ""}
+              onChange={setListMemberId}
+              members={members}
+              label={t("assignTo")}
+            />
+            <button className="btn" type="submit">
+              <Plus size={18} />
+              {t("createSpendingsList")}
+            </button>
+          </div>
         </form>
       </div>
 
@@ -131,15 +145,25 @@ export function SpendingView() {
           const draft = draftFor(list.id);
 
           return (
-            <div className="card" key={list.id}>
+            <div className="card assigned-card" key={list.id} style={{ "--member-color": memberColor(list.memberId) } as CSSProperties}>
               <div className="wishlist-head">
                 <div>
                   <h2>{list.name}</h2>
-                  <div className="meta">{t("itemsOnList", { n: list.items.length })}</div>
+                  <div className="meta">
+                    {t("itemsOnList", { n: list.items.length })} · {who(list.memberId, t("someone"))}
+                  </div>
                 </div>
-                <button className="btn danger" onClick={() => deleteSpendList(list.id)}>
-                  {t("deleteSpendingsList")}
-                </button>
+                <div className="list-assign">
+                  <MemberSelect
+                    value={list.memberId}
+                    onChange={(id) => upsertSpendList({ ...list, memberId: id })}
+                    members={members}
+                    label={t("assignTo")}
+                  />
+                  <button className="btn danger" onClick={() => deleteSpendList(list.id)}>
+                    {t("deleteSpendingsList")}
+                  </button>
+                </div>
               </div>
 
               {items.length === 0 ? (
@@ -149,6 +173,7 @@ export function SpendingView() {
                   <div className="spend-list">
                     {items.map((item) => (
                       <div className="spend-item" key={item.id}>
+                        <i style={{ background: memberColor(item.memberId) }} />
                         <div>
                           <strong>{item.name}</strong>
                           <div className="meta">
@@ -164,7 +189,8 @@ export function SpendingView() {
                   </div>
                   <div className="spend-totals">
                     {people.map((person) => (
-                      <div key={person.id}>
+                      <div key={person.id} className="spend-person">
+                        <i style={{ background: memberColor(person.id) }} />
                         {t("spendPersonTotal", { name: person.name, amount: formatMoney(person.total, language) })}
                       </div>
                     ))}
@@ -200,17 +226,12 @@ export function SpendingView() {
                   inputMode="decimal"
                   aria-label={t("spendCost")}
                 />
-                <select
+                <MemberSelect
                   value={draft.memberId}
-                  onChange={(e) => setDrafts((current) => ({ ...current, [list.id]: { ...draft, memberId: e.target.value } }))}
-                  aria-label={t("spendSpender")}
-                >
-                  {members.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(id) => setDrafts((current) => ({ ...current, [list.id]: { ...draft, memberId: id } }))}
+                  members={members}
+                  label={t("spendSpender")}
+                />
                 <button className="btn" type="submit" aria-label={t("addItem")}>
                   <Plus size={18} />
                 </button>

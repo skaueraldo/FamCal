@@ -84,6 +84,9 @@ const en = {
   repeatUntil: "Until",
   eventColor: "Color",
   colorAutomatic: "Use member color",
+  assignTo: "Assign to",
+  memberColor: "Color",
+  colorTaken: "Already taken",
   removeSeriesHint: "Removes every occurrence of this repeating activity",
 
   shoppingEyebrow: "Shared with the group",
@@ -118,6 +121,7 @@ const en = {
   wishlistLede: "Create a named wishlist, then add things underneath. The group can see every list.",
   wishlistNamePlaceholder: "Wishlist name, e.g. Birthday",
   createWishlist: "Add wishlist",
+  assignedTo: "{name}",
   noWishlists: "No wishlists yet. Add one and give it a name.",
   wishItemPlaceholder: "Add something to this list",
   emptyWishlist: "Nothing on this list yet.",
@@ -254,6 +258,8 @@ const en = {
   addToHomeScreenLede:
     "Install FamCal like an app. On iPhone, tap Share, then Add to Home Screen. On Android, open the browser menu and choose Add to Home screen or Install app.",
   runningAsApp: "FamCal is running from your Home Screen.",
+  changelogTitle: "What's new",
+  changelogLede: "Changes in FamCal, newest first.",
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -341,6 +347,9 @@ const no: Record<MessageKey, string> = {
   repeatUntil: "Til og med",
   eventColor: "Farge",
   colorAutomatic: "Bruk medlemsfarge",
+  assignTo: "Tilordne",
+  memberColor: "Farge",
+  colorTaken: "Opptatt",
   removeSeriesHint: "Fjerner alle forekomstene av denne gjentakende aktiviteten",
 
   shoppingEyebrow: "Delt med gruppen",
@@ -375,6 +384,7 @@ const no: Record<MessageKey, string> = {
   wishlistLede: "Lag en ønskeliste med navn, og legg ting under. Gruppen kan se alle listene.",
   wishlistNamePlaceholder: "Navn på listen, f.eks. bursdag",
   createWishlist: "Legg til ønskeliste",
+  assignedTo: "{name}",
   noWishlists: "Ingen ønskelister ennå. Legg til en og gi den et navn.",
   wishItemPlaceholder: "Legg til noe på listen",
   emptyWishlist: "Ingenting på denne listen ennå.",
@@ -511,6 +521,8 @@ const no: Record<MessageKey, string> = {
   addToHomeScreenLede:
     "Installer FamCal som en app. På iPhone: trykk Del, deretter Legg til på Hjem-skjerm. På Android: åpne nettlesermenyen og velg Legg til på startskjermen eller Installer app.",
   runningAsApp: "FamCal kjører fra Hjem-skjermen.",
+  changelogTitle: "Hva er nytt",
+  changelogLede: "Endringer i FamCal, nyeste først.",
 };
 
 const dictionaries: Record<Lang, Record<MessageKey, string>> = { en, no };

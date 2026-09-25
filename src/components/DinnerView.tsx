@@ -125,7 +125,7 @@ export function DinnerView() {
       <div className="topbar">
         <div className="topbar-copy">
           <div className="eyebrow">{t("dinnerEyebrow")}</div>
-          <h1>{t("dinnerTitle")}</h1>
+          <h2>{t("dinnerTitle")}</h2>
         </div>
         <NotifyToggle channel="dinner" />
       </div>

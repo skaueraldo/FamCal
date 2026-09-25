@@ -1,3 +1,4 @@
+import { noticeIconUrl } from "./branding";
 import type { CalEvent } from "../types";
 
 const NOTIFIED_KEY = "famcal.notified";
@@ -78,7 +79,7 @@ export async function showNotice(notice: Notice): Promise<boolean> {
   const options: NotificationOptions = {
     body: notice.body,
     tag: notice.tag,
-    icon: "/icon-192.png",
+    icon: noticeIconUrl(),
     badge: "/favicon-32.png",
     data: { url: "/", tab: notice.tab ?? "calendar" },
   };

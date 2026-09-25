@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
-import { eventColor, groupOccurrencesByDay, type EventOccurrence } from "../lib/events";
+import { groupOccurrencesByDay, memberColorOf, type EventOccurrence } from "../lib/events";
 import {
   addDays,
   addMonths,
@@ -51,8 +51,7 @@ export function CalendarView() {
     return groupOccurrencesByDay(events, focus, focus);
   }, [group?.events, view, weekDays, weeks, focus]);
 
-  const memberColor = (memberId: string) =>
-    group?.members.find((member) => member.id === memberId)?.color ?? "#c45c26";
+  const memberColor = (memberId: string) => memberColorOf(group?.members, memberId);
 
   const pickView = (next: CalView) => {
     if (next === "day") setFocus(todayIso);
@@ -105,7 +104,7 @@ export function CalendarView() {
 
   const eyebrow =
     view === "month"
-      ? group?.name || t("householdMonth")
+      ? t("householdMonth")
       : view === "week"
         ? t("weekRange", {
             start: formatDayShort(weekDays[0]?.iso ?? focus, language),
@@ -120,7 +119,7 @@ export function CalendarView() {
       <div className="topbar">
         <div className="topbar-copy">
           <div className="eyebrow">{eyebrow}</div>
-          <h1>{heading}</h1>
+          <h2>{heading}</h2>
         </div>
         <div className="topbar-tools">
           <div className="month-nav">
@@ -180,13 +179,13 @@ export function CalendarView() {
                   <strong>{day.weekday}</strong>
                   <span className="meta">{formatDayShort(day.iso, language)}</span>
                 </div>
-                <div className="chips">
+                    <div className="chips">
                   {events.length === 0 ? <span className="meta">{t("noEventsShort")}</span> : null}
                   {events.map((occ) => (
                     <span
                       key={`${occ.event.id}:${occ.startDate}`}
                       className="chip"
-                      style={{ background: eventColor(occ.event, memberColor(occ.event.memberId)) }}
+                      style={{ background: memberColor(occ.event.memberId) }}
                     >
                       {occ.event.start ? `${formatTime(occ.event.start, language)} ` : ""}
                       {occ.event.title}
@@ -234,7 +233,7 @@ export function CalendarView() {
                         <span
                           key={`${occ.event.id}:${occ.startDate}`}
                           className="chip"
-                          style={{ background: eventColor(occ.event, memberColor(occ.event.memberId)) }}
+                          style={{ background: memberColor(occ.event.memberId) }}
                         >
                           {occ.event.start ? `${formatTime(occ.event.start, language)} ` : ""}
                           {occ.event.title}

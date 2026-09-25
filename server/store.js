@@ -1,8 +1,28 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { get, put } from "@vercel/blob";
 
+const MEMBER_COLORS = ["#8a9bb0", "#7d9b88", "#c4a4b0", "#a8b8c8", "#d4b4a0", "#9aa8c4", "#b8a7d4", "#7eb8b0", "#d4a5a5", "#c9b8a0"];
+
 function asArray(value) {
   return Array.isArray(value) ? value : [];
+}
+
+function normalizeColor(color) {
+  const value = String(color || "").trim();
+  return /^#[0-9a-fA-F]{6}$/.test(value) ? value.toLowerCase() : "";
+}
+
+export function nextFreeMemberColor(used, keep = "") {
+  const taken = new Set([...used].map(normalizeColor).filter(Boolean));
+  const kept = normalizeColor(keep);
+  if (kept && MEMBER_COLORS.includes(kept) && !taken.has(kept)) return kept;
+  return MEMBER_COLORS.find((color) => !taken.has(color)) ?? MEMBER_COLORS[0];
+}
+
+export function isColorTaken(members, color, exceptId = "") {
+  const wanted = normalizeColor(color);
+  if (!wanted) return true;
+  return asArray(members).some((member) => member?.id !== exceptId && normalizeColor(member?.color) === wanted);
 }
 
 function parseGroups(raw) {
@@ -10,22 +30,38 @@ function parseGroups(raw) {
   return raw;
 }
 
-export function mergeMembers(left, right, kickedIds = []) {
+export function mergeMembers(left, right, kickedIds = [], preferRight = false) {
   const kicked = new Set(asArray(kickedIds).map(String));
-  const byId = new Map();
-  for (const member of [...asArray(left), ...asArray(right)]) {
+  const fromLeft = new Map();
+  const fromRight = new Map();
+  for (const member of asArray(left)) {
     if (!member?.id) continue;
     const id = String(member.id);
     if (kicked.has(id)) continue;
-    const previous = byId.get(id);
-    byId.set(
-      id,
-      previous
-        ? { ...previous, ...member, id, admin: Boolean(previous.admin || member.admin) }
-        : { ...member, id, admin: Boolean(member.admin) },
-    );
+    fromLeft.set(id, { ...member, id, admin: Boolean(member.admin) });
   }
-  return [...byId.values()];
+  for (const member of asArray(right)) {
+    if (!member?.id) continue;
+    const id = String(member.id);
+    if (kicked.has(id)) continue;
+    fromRight.set(id, { ...member, id, admin: Boolean(member.admin) });
+  }
+  const used = [];
+  return [...new Set([...fromLeft.keys(), ...fromRight.keys()])].map((id) => {
+    const a = fromLeft.get(id);
+    const b = fromRight.get(id);
+    const primary = preferRight ? b || a : a || b;
+    const secondary = preferRight ? a : b;
+    const merged = {
+      ...secondary,
+      ...primary,
+      id,
+      admin: Boolean(a?.admin || b?.admin),
+    };
+    const color = nextFreeMemberColor(used, primary?.color || secondary?.color);
+    used.push(color);
+    return { ...merged, color };
+  });
 }
 
 export function mergeGroupState(left, right, options = {}) {
@@ -41,7 +77,7 @@ export function mergeGroupState(left, right, options = {}) {
     code: newer.code || older.code,
     name: String(newer.name || older.name || "Family"),
     kickedIds,
-    members: mergeMembers(left.members, right.members, kickedIds),
+    members: mergeMembers(left.members, right.members, kickedIds, rightNewer),
     updatedAt: Math.max(Number(left.updatedAt) || 0, Number(right.updatedAt) || 0),
   };
   for (const key of ["events", "items", "dinners", "wishlists", "todos", "spendings", "sources", "shopHistory"]) {
@@ -148,7 +184,7 @@ export function sanitizeGroup(raw) {
       .map((member) => ({
         id: String(member.id),
         name: String(member.name || "").slice(0, 60),
-        color: String(member.color || "#c45c26"),
+        color: String(member.color || "#8a9bb0"),
         admin: Boolean(member.admin),
       })),
     kickedIds: asArray(raw.kickedIds).map(String).filter(Boolean),
@@ -188,12 +224,14 @@ export function ensureGroupRoles(group) {
   if (!group) return group;
   const kicked = new Set(asArray(group.kickedIds).map(String));
   group.kickedIds = [...kicked];
+  const used = [];
   group.members = asArray(group.members)
     .filter((member) => member && member.id && !kicked.has(String(member.id)))
-    .map((member) => ({
-      ...member,
-      admin: Boolean(member.admin),
-    }));
+    .map((member) => {
+      const color = nextFreeMemberColor(used, member.color);
+      used.push(color);
+      return { ...member, admin: Boolean(member.admin), color };
+    });
   if (group.members.length && !group.members.some((member) => member.admin)) {
     group.members[0].admin = true;
   }

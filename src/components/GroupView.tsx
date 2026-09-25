@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { formatWhen } from "../lib/dates";
 import { initials } from "../lib/id";
 import { useApp } from "../state/AppState";
+import { ColorPicks } from "./ColorPicks";
 import { GroupAccessForm } from "./GroupAccessForm";
 
 export function GroupView() {
@@ -17,6 +18,7 @@ export function GroupView() {
     switchGroup,
     kickMember,
     makeAdmin,
+    setMemberColor,
     importIcsText,
     importIcsUrl,
     importSpond,
@@ -129,7 +131,7 @@ export function GroupView() {
             <span className={`dot ${status}`} />
             {statusLabel}
           </div>
-          <h1>{t("peopleAndSources")}</h1>
+          <h2>{t("peopleAndSources")}</h2>
         </div>
       </div>
 
@@ -185,6 +187,7 @@ export function GroupView() {
             const self = member.id === session?.profile.id;
             const canKick = isAdmin && !self && !(member.admin && adminCount < 2);
             const canPromote = isAdmin && !self && !member.admin;
+            const canColor = self || isAdmin;
             return (
               <div className="member-row" key={member.id}>
                 <div className="member-who">
@@ -199,20 +202,31 @@ export function GroupView() {
                     {member.admin ? <div className="member-role">{t("administrator")}</div> : null}
                   </div>
                 </div>
-                {canKick || canPromote ? (
-                  <div className="row">
-                    {canPromote ? (
-                      <button type="button" className="btn secondary small" onClick={() => makeAdmin(member.id)}>
-                        {t("makeAdmin")}
-                      </button>
-                    ) : null}
-                    {canKick ? (
-                      <button type="button" className="btn danger small" onClick={() => onKick(member.id, member.name)}>
-                        {t("kickMember")}
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
+                <div className="member-tools">
+                  {canColor ? (
+                    <ColorPicks
+                      value={member.color}
+                      onChange={(color) => setMemberColor(member.id, color)}
+                      label={t("memberColor")}
+                      taken={(group?.members ?? []).filter((other) => other.id !== member.id).map((other) => other.color)}
+                      takenLabel={t("colorTaken")}
+                    />
+                  ) : null}
+                  {canKick || canPromote ? (
+                    <div className="row">
+                      {canPromote ? (
+                        <button type="button" className="btn secondary small" onClick={() => makeAdmin(member.id)}>
+                          {t("makeAdmin")}
+                        </button>
+                      ) : null}
+                      {canKick ? (
+                        <button type="button" className="btn danger small" onClick={() => onKick(member.id, member.name)}>
+                          {t("kickMember")}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             );
           })}
