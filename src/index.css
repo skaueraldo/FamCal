@@ -119,7 +119,8 @@ a,
 .menu-toggle,
 .shop-item,
 .event-row,
-.dock button {
+.dock-items button,
+.dock-toggle {
   transition:
     background-color 0.16s ease,
     color 0.16s ease,
@@ -271,7 +272,11 @@ a,
 .shell {
   width: min(1160px, calc(100% - 28px));
   margin: 0 auto;
-  padding: 20px 0 calc(156px + var(--safe-bottom));
+  padding: 20px 0 calc(118px + var(--safe-bottom));
+}
+
+.shell.dock-open {
+  padding-bottom: calc(176px + var(--safe-bottom));
 }
 
 .topbar {
@@ -414,8 +419,60 @@ a,
   box-shadow: 0 1px 2px rgba(23, 21, 19, 0.06), 0 6px 16px rgba(23, 21, 19, 0.06);
 }
 
-.day-agenda.today {
+.day-agenda-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.day-events {
+  background: color-mix(in srgb, var(--paper-deep) 62%, var(--sheet));
+}
+
+.day-events.today {
+  background: var(--today-surface);
   border-color: color-mix(in srgb, var(--copper) 42%, var(--line));
+}
+
+.day-events h2,
+.day-compose h2 {
+  margin-bottom: 12px;
+}
+
+.day-events .event-list {
+  margin: 0;
+  gap: 10px;
+}
+
+.day-events .event-row {
+  background: var(--sheet);
+  border-color: color-mix(in srgb, var(--ink) 8%, var(--line));
+  box-shadow: var(--shadow-soft);
+  padding: 14px 14px;
+}
+
+.day-events .event-row strong {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.day-events .event-row i {
+  min-height: 36px;
+}
+
+.day-events .empty {
+  padding: 4px 0 2px;
+  text-align: left;
+}
+
+.day-compose {
+  background: var(--muted-surface);
+  box-shadow: none;
+}
+
+.day-compose.editing {
+  border-color: color-mix(in srgb, var(--ink) 22%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .week-agenda {
@@ -622,9 +679,9 @@ a,
   bottom: calc(10px + var(--safe-bottom));
   transform: translateX(-50%);
   width: min(720px, calc(100% - 16px));
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
-  gap: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   padding: 5px;
   background: var(--dock-bg);
   color: var(--dock-text);
@@ -636,7 +693,19 @@ a,
   z-index: 20;
 }
 
-.dock button {
+.dock-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: 4px;
+}
+
+.dock.has-more:not(.open) .dock-items {
+  grid-template-rows: auto;
+  grid-auto-rows: 0;
+  overflow: hidden;
+}
+
+.dock-items button {
   border: 0;
   background: transparent;
   color: var(--dock-text);
@@ -652,7 +721,7 @@ a,
   letter-spacing: 0.01em;
 }
 
-.dock button span {
+.dock-items button span {
   max-width: 100%;
   line-height: 1.15;
   text-align: center;
@@ -663,10 +732,30 @@ a,
   overflow-wrap: anywhere;
 }
 
-.dock button.active {
+.dock-items button.active {
   background: var(--dock-active);
   color: var(--dock-active-ink);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.dock-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--dock-text);
+  width: 100%;
+  min-height: 22px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+}
+
+.dock-toggle svg {
+  transition: transform 0.16s ease;
+}
+
+.dock.open .dock-toggle svg {
+  transform: rotate(180deg);
 }
 
 .panel {
@@ -1477,7 +1566,13 @@ a,
     background: var(--sheet);
   }
 
-  .dock button:hover:not(.active) {
+  .day-events .event-row.editable:hover {
+    box-shadow: var(--shadow);
+    border-color: color-mix(in srgb, var(--ink) 18%, var(--line));
+  }
+
+  .dock-items button:hover:not(.active),
+  .dock-toggle:hover {
     background: color-mix(in srgb, var(--ink) 6%, transparent);
     color: var(--ink);
   }
@@ -1492,7 +1587,8 @@ a,
   .menu-toggle,
   .shop-item,
   .event-row,
-  .dock button {
+  .dock-items button,
+  .dock-toggle {
     transition: none;
   }
 }
@@ -1519,7 +1615,6 @@ a,
     bottom: auto;
     transform: none;
     width: 212px;
-    grid-template-columns: 1fr;
     grid-row: 1;
     height: fit-content;
     padding: 8px;
@@ -1527,7 +1622,16 @@ a,
     background: var(--dock-bg);
   }
 
-  .dock button {
+  .dock-items {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .dock-toggle {
+    display: none;
+  }
+
+  .dock-items button {
     grid-template-columns: 20px 1fr;
     justify-items: start;
     padding: 11px 12px;
