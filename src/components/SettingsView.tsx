@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
 import { CHANGELOG } from "../lib/changelog";
 import { localeTag } from "../lib/i18n";
+import { captureOwnerKey, looksLikeOwner, readOwnerKey } from "../lib/owner";
 import { MENU_SECTIONS, type MenuSection } from "../lib/storage";
+import { fetchOwnerGroups } from "../lib/sync";
 import { useApp } from "../state/AppState";
 
 const menuLabels: Record<MenuSection, "tabCalendar" | "tabDinner" | "tabShopping" | "tabTodos" | "tabSpendings" | "tabWishlist" | "tabGroup"> = {
@@ -21,8 +24,26 @@ function isStandalone() {
 }
 
 export function SettingsView() {
-  const { theme, setTheme, language, setLanguage, menu, setMenuSection, t } = useApp();
+  const { theme, setTheme, language, setLanguage, menu, setMenuSection, session, t } = useApp();
   const installed = isStandalone();
+  const [ownerGroups, setOwnerGroups] = useState<{ name: string; owner: string; members: number }[] | null>(null);
+
+  useEffect(() => {
+    const key = captureOwnerKey() || readOwnerKey();
+    const name = session?.profile.name;
+    if (!key && !looksLikeOwner(name)) return;
+    let cancelled = false;
+    void fetchOwnerGroups({
+      ownerKey: key,
+      memberId: session?.profile.id,
+      name,
+    }).then((list) => {
+      if (!cancelled) setOwnerGroups(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.profile.id, session?.profile.name]);
 
   return (
     <section className="main panel">
@@ -128,6 +149,34 @@ export function SettingsView() {
           ))}
         </ol>
       </div>
+
+      {ownerGroups ? (
+        <div className="card">
+          <h2>{t("ownerGroupsTitle")}</h2>
+          <p className="lede" style={{ marginTop: 8 }}>
+            {t("ownerGroupsLede")}
+          </p>
+          {ownerGroups.length ? (
+            <ul className="owner-groups">
+              {ownerGroups.map((item, index) => (
+                <li key={`${item.name}:${index}`}>
+                  <div>
+                    <strong>{item.name}</strong>
+                    {item.owner ? <div className="meta">{t("ownerGroupOwner", { name: item.owner })}</div> : null}
+                  </div>
+                  <span>
+                    {item.members === 1
+                      ? t("ownerGroupMembersOne")
+                      : t("ownerGroupMembersMany", { n: item.members })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="empty">{t("ownerGroupsEmpty")}</p>
+          )}
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -1,7 +1,8 @@
-import { Copy, Plus, RefreshCw, Upload } from "lucide-react";
+import { Copy, Mail, Plus, RefreshCw, Upload } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { formatWhen } from "../lib/dates";
 import { initials } from "../lib/id";
+import { inviteAppLink, isInviteEmail } from "../lib/identity";
 import { useApp } from "../state/AppState";
 import { ColorPicks } from "./ColorPicks";
 import { GroupAccessForm } from "./GroupAccessForm";
@@ -39,6 +40,8 @@ export function GroupView() {
   const [message, setMessage] = useState<string | null>(null);
   const [newPerson, setNewPerson] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   useEffect(() => {
     setGroupName(group?.name ?? "");
@@ -112,6 +115,27 @@ export function GroupView() {
     if (!group) return;
     await navigator.clipboard.writeText(group.code);
     setMessage(t("inviteCopied"));
+  };
+
+  const sendInvite = (event: FormEvent) => {
+    event.preventDefault();
+    if (!group) return;
+    const address = inviteEmail.trim();
+    if (!isInviteEmail(address)) {
+      setInviteError(t("inviteEmailInvalid"));
+      return;
+    }
+    const link = inviteAppLink(group.code);
+    const subject = t("inviteMailSubject", { group: group.name });
+    const body = t("inviteMailBody", { group: group.name, code: group.code, link });
+    const href = `mailto:${encodeURIComponent(address)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const anchor = document.createElement("a");
+    anchor.href = href;
+    anchor.rel = "noopener";
+    anchor.click();
+    setInviteError(null);
+    setInviteEmail("");
+    setMessage(t("inviteSent"));
   };
 
   const me = group?.members.find((member) => member.id === session?.profile.id);
@@ -191,11 +215,33 @@ export function GroupView() {
         <p className="lede" style={{ marginTop: 8 }}>
           {t("shareCodeLede")}
         </p>
-        <div className="row">
-          <span className="code-pill">{group?.code}</span>
-          <button className="btn secondary" onClick={copyCode}>
-            <Copy size={16} /> {t("copyCode")}
-          </button>
+        <div className="invite-share">
+          <div className="row">
+            <span className="code-pill">{group?.code}</span>
+            <button className="btn secondary" type="button" onClick={copyCode}>
+              <Copy size={16} /> {t("copyCode")}
+            </button>
+          </div>
+          <form className="invite-mail" onSubmit={sendInvite}>
+            <label className="field">
+              <span>{t("inviteEmail")}</span>
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => {
+                  setInviteEmail(e.target.value);
+                  if (inviteError) setInviteError(null);
+                }}
+                placeholder={t("inviteEmailPlaceholder")}
+                autoComplete="email"
+                required
+              />
+            </label>
+            <button className="btn secondary" type="submit">
+              <Mail size={16} /> {t("sendInvite")}
+            </button>
+          </form>
+          {inviteError ? <p className="error">{inviteError}</p> : null}
         </div>
         <div className="member-list">
           {group?.members.map((member) => {

@@ -881,6 +881,31 @@ a,
   letter-spacing: 0.14em;
 }
 
+.invite-share {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: flex-end;
+}
+
+.invite-mail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  flex: 1 1 260px;
+  min-width: min(100%, 240px);
+}
+
+.invite-mail .field {
+  margin: 0;
+  flex: 1 1 180px;
+}
+
+.invite-mail .btn {
+  margin-bottom: 1px;
+}
+
 .shop-list {
   display: flex;
   flex-direction: column;
@@ -1335,6 +1360,32 @@ a,
 .group-switch-row.active {
   border-color: var(--sage);
   background: color-mix(in srgb, var(--sage) 12%, var(--sheet));
+}
+
+.owner-groups {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.owner-groups li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--muted-surface);
+}
+
+.owner-groups span {
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .menu-toggles {

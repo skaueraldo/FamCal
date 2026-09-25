@@ -13,6 +13,10 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-09-25",
     items: [
       {
+        en: "You can email a FamCal link and the group code from the Group page.",
+        no: "Du kan sende en FamCal-lenke og gruppekoden på e-post fra Gruppesiden.",
+      },
+      {
         en: "Today and tomorrow show existing events apart from the form for adding a new one.",
         no: "I dag og i morgen viser eksisterende hendelser atskilt fra skjemaet for å legge til en ny.",
       },
