@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { get, put } from "@vercel/blob";
+import { parsePhotoExt } from "./photos.js";
 
 const MEMBER_COLORS = ["#e53935", "#fb8c00", "#43a047", "#1e88e5", "#8e24aa", "#d81b60", "#00897b", "#6d4c41", "#3949ab", "#00acc1"];
 
@@ -81,12 +82,21 @@ export function mergeMembers(left, right, kickedIds = [], preferRight = false) {
     const b = fromRight.get(id);
     const primary = preferRight ? b || a : a || b;
     const secondary = preferRight ? a : b;
+    const photo = parsePhotoExt(primary?.photo);
+    const photoAt = Number(primary?.photoAt);
     const merged = {
       ...secondary,
       ...primary,
       id,
       admin: Boolean(a?.admin || b?.admin),
     };
+    if (photo) {
+      merged.photo = photo;
+      merged.photoAt = Number.isFinite(photoAt) && photoAt > 0 ? photoAt : Date.now();
+    } else {
+      delete merged.photo;
+      delete merged.photoAt;
+    }
     const color = nextFreeMemberColor(used, primary?.color || secondary?.color);
     used.push(color);
     return { ...merged, color };
@@ -237,11 +247,14 @@ export function sanitizeGroup(raw) {
       .filter((member) => member && member.id)
       .map((member) => {
         const menu = parseMemberMenu(member.menu);
+        const photo = parsePhotoExt(member.photo);
+        const photoAt = Number(member.photoAt);
         return {
           id: String(member.id),
           name: String(member.name || "").slice(0, 60),
           color: String(member.color || "#1e88e5"),
           admin: Boolean(member.admin),
+          ...(photo ? { photo, photoAt: Number.isFinite(photoAt) && photoAt > 0 ? photoAt : Date.now() } : {}),
           ...(menu ? { menu } : {}),
         };
       }),

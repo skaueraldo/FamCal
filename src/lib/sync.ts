@@ -142,6 +142,43 @@ export async function fetchOwnerGroups(input: {
   }));
 }
 
+export async function uploadMemberPhoto(input: {
+  code: string;
+  memberId: string;
+  actorId: string;
+  blob: Blob;
+  type: string;
+}): Promise<{ photo: string; photoAt: number }> {
+  const res = await fetch(
+    `/api/groups/${encodeURIComponent(input.code)}/members/${encodeURIComponent(input.memberId)}/photo`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": input.type,
+        "x-famcal-member": input.actorId,
+      },
+      body: input.blob,
+    },
+  );
+  const body = (await res.json().catch(() => ({}))) as { error?: string; photo?: string; photoAt?: number };
+  if (!res.ok || !body.photo) throw new Error(body.error || "Could not save that photo.");
+  return { photo: String(body.photo), photoAt: Number(body.photoAt) || Date.now() };
+}
+
+export async function deleteMemberPhoto(input: { code: string; memberId: string; actorId: string }): Promise<void> {
+  const res = await fetch(
+    `/api/groups/${encodeURIComponent(input.code)}/members/${encodeURIComponent(input.memberId)}/photo`,
+    {
+      method: "DELETE",
+      headers: { "x-famcal-member": input.actorId },
+    },
+  );
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error || "Could not save that photo.");
+  }
+}
+
 export async function fetchGroup(code: string): Promise<Group> {
   const normalized = code.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
   const res = await fetch(`/api/groups/${encodeURIComponent(normalized)}`);

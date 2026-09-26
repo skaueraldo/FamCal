@@ -7,6 +7,7 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import { calendarFetchUrls, GOOGLE_ICAL_HELP, looksLikeHtml, looksLikeIcs } from "./calendar-url.js";
 import { fetchSpondActivities } from "./spond.js";
+import { deleteMemberPhoto, readMemberPhoto, saveMemberPhoto } from "./photos.js";
 import { createDurableStore, createFileStore, ensureGroupRoles, groupCreatedAt, isColorTaken, mergeGroups, mergeGroupState, nextFreeMemberColor, parseMemberMenu, sanitizeGroup } from "./store.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -176,6 +177,23 @@ function broadcast(code, payload, except) {
   }
 }
 
+function normalizeGroupCode(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 6);
+}
+
+function canEditMemberPhoto(actor, target) {
+  return Boolean(actor && target && (target.id === actor.id || actor.admin));
+}
+
+const photoBody = express.raw({
+  type: ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"],
+  limit: "2mb",
+});
+
 const app = express();
 app.use(express.json({ limit: "4mb" }));
 
@@ -216,13 +234,77 @@ app.get("/api/owner/groups", async (req, res) => {
   res.json({ groups: list });
 });
 
+app.get("/api/groups/:code/members/:id/photo", async (req, res) => {
+  await hydrate();
+  const code = normalizeGroupCode(req.params.code);
+  const group = groups[code];
+  const target = group?.members?.find((member) => member.id === String(req.params.id || ""));
+  if (!group || !target?.photo) return res.status(404).end();
+  try {
+    const stored = await readMemberPhoto({
+      onVercel,
+      dataDir,
+      code,
+      memberId: target.id,
+      ext: target.photo,
+    });
+    if (!stored) return res.status(404).end();
+    res.setHeader("Content-Type", stored.type);
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.send(stored.bytes);
+  } catch {
+    res.status(404).end();
+  }
+});
+
+app.put("/api/groups/:code/members/:id/photo", photoBody, async (req, res) => {
+  await hydrate();
+  const code = normalizeGroupCode(req.params.code);
+  const group = groups[code];
+  if (!group) return res.status(404).json({ error: "Group not found" });
+  const actor = group.members.find((member) => member.id === String(req.get("x-famcal-member") || ""));
+  const target = group.members.find((member) => member.id === String(req.params.id || ""));
+  if (!canEditMemberPhoto(actor, target)) return res.status(404).json({ error: "Not found" });
+  try {
+    const ext = await saveMemberPhoto({
+      onVercel,
+      dataDir,
+      code,
+      memberId: target.id,
+      buffer: Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || []),
+      contentType: req.get("content-type"),
+    });
+    target.photo = ext;
+    target.photoAt = Date.now();
+    group.updatedAt = Date.now();
+    await persist();
+    broadcast(code, { type: "state", group: publicGroup(group) }, null);
+    res.json({ photo: target.photo, photoAt: target.photoAt });
+  } catch (error) {
+    res.status(Number(error.status) || 400).json({ error: error.message || "Could not save that photo." });
+  }
+});
+
+app.delete("/api/groups/:code/members/:id/photo", async (req, res) => {
+  await hydrate();
+  const code = normalizeGroupCode(req.params.code);
+  const group = groups[code];
+  if (!group) return res.status(404).json({ error: "Group not found" });
+  const actor = group.members.find((member) => member.id === String(req.get("x-famcal-member") || ""));
+  const target = group.members.find((member) => member.id === String(req.params.id || ""));
+  if (!canEditMemberPhoto(actor, target)) return res.status(404).json({ error: "Not found" });
+  await deleteMemberPhoto({ onVercel, dataDir, code, memberId: target.id });
+  delete target.photo;
+  delete target.photoAt;
+  group.updatedAt = Date.now();
+  await persist();
+  broadcast(code, { type: "state", group: publicGroup(group) }, null);
+  res.json({ ok: true });
+});
+
 app.get("/api/groups/:code", async (req, res) => {
   await hydrate();
-  const code = String(req.params.code || "")
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 6);
+  const code = normalizeGroupCode(req.params.code);
   const group = groups[code];
   if (!group) return res.status(404).json({ error: "Group not found" });
   res.json(publicGroup(group));
@@ -462,6 +544,7 @@ wss.on("connection", async (ws, req) => {
         if (target.admin && adminCount < 2) return;
         group.members = group.members.filter((member) => member.id !== targetId);
         group.kickedIds = [...new Set([...(group.kickedIds || []), targetId])];
+        void deleteMemberPhoto({ onVercel, dataDir, code, memberId: targetId });
         closeKicked(code, targetId);
         break;
       }

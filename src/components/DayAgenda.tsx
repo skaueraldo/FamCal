@@ -3,6 +3,7 @@ import { formatOccurrenceWhen, memberColorOf, occurrencesOnDay } from "../lib/ev
 import { uid } from "../lib/id";
 import type { CalEvent, RepeatRule } from "../types";
 import { useApp } from "../state/AppState";
+import { MemberName } from "./MemberName";
 import { MemberSelect } from "./MemberSelect";
 
 const emptyForm = (iso: string, memberId = "") => ({
@@ -34,7 +35,6 @@ export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boo
   const members = group?.members ?? [];
   const isAdmin = Boolean(members.find((member) => member.id === session?.profile.id)?.admin);
   const memberColor = (id: string) => memberColorOf(members, id);
-  const who = (id: string) => members.find((member) => member.id === id)?.name ?? t("someone");
   const canChange = (event: CalEvent) => Boolean(session && !event.sourceId);
   const canRemove = (event: CalEvent) =>
     Boolean(session && !event.sourceId && (event.memberId === session.profile.id || isAdmin));
@@ -117,7 +117,7 @@ export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boo
                   <i style={{ background: memberColor(occ.event.memberId) }} />
                   <div>
                     <strong>{occ.event.title}</strong>
-                    <div className="meta">
+                    <div className="meta event-who">
                       {formatOccurrenceWhen(occ, language, {
                         allDay: t("allDay"),
                         daily: t("repeatDaily"),
@@ -125,7 +125,7 @@ export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boo
                         monthly: t("repeatMonthly"),
                         yearly: t("repeatYearly"),
                       })}
-                      {` · ${who(occ.event.memberId)}`}
+                      <MemberName memberId={occ.event.memberId} members={members} groupCode={group?.code} fallbackName={t("someone")} />
                     </div>
                     {occ.event.notes ? <div className="meta">{occ.event.notes}</div> : null}
                   </div>

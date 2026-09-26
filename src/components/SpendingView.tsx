@@ -4,6 +4,7 @@ import { formatDayShort, formatMoney, toISODate } from "../lib/dates";
 import { memberColorOf } from "../lib/events";
 import { uid } from "../lib/id";
 import { useApp } from "../state/AppState";
+import { MemberName } from "./MemberName";
 import { MemberSelect } from "./MemberSelect";
 import { NotifyToggle } from "./NotifyToggle";
 
@@ -149,8 +150,14 @@ export function SpendingView() {
               <div className="wishlist-head">
                 <div>
                   <h2>{list.name}</h2>
-                  <div className="meta">
-                    {t("itemsOnList", { n: list.items.length })} · {who(list.memberId, t("someone"))}
+                  <div className="meta member-line">
+                    {t("itemsOnList", { n: list.items.length })}
+                    <MemberName
+                      memberId={list.memberId}
+                      members={members}
+                      groupCode={group?.code}
+                      fallbackName={t("someone")}
+                    />
                   </div>
                 </div>
                 <div className="list-assign">
@@ -176,8 +183,14 @@ export function SpendingView() {
                         <i style={{ background: memberColor(item.memberId) }} />
                         <div>
                           <strong>{item.name}</strong>
-                          <div className="meta">
-                            {formatDayShort(item.date, language)} · {who(item.memberId, item.spenderName)}
+                          <div className="meta member-line">
+                            {formatDayShort(item.date, language)}
+                            <MemberName
+                              memberId={item.memberId}
+                              members={members}
+                              groupCode={group?.code}
+                              fallbackName={item.spenderName || t("someone")}
+                            />
                           </div>
                         </div>
                         <div className="spend-cost">{formatMoney(item.cost, language)}</div>
@@ -190,8 +203,13 @@ export function SpendingView() {
                   <div className="spend-totals">
                     {people.map((person) => (
                       <div key={person.id} className="spend-person">
-                        <i style={{ background: memberColor(person.id) }} />
-                        {t("spendPersonTotal", { name: person.name, amount: formatMoney(person.total, language) })}
+                        <MemberName
+                          memberId={person.id}
+                          members={members}
+                          groupCode={group?.code}
+                          fallbackName={person.name}
+                        />
+                        {formatMoney(person.total, language)}
                       </div>
                     ))}
                     <strong>{t("spendTotal", { amount: formatMoney(listTotal, language) })}</strong>

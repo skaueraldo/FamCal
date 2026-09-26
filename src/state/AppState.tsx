@@ -16,7 +16,8 @@ import { memberByName, namesMatch, normalizeCode, reconcileProfile } from "../li
 import { parseIcs, sourceNameFromIcs } from "../lib/ics";
 import { mapKnownError, t as translate, type Lang, type MessageKey, type Theme } from "../lib/i18n";
 import { clearGroupCache, clearSession, defaultMenu, emptyNotify, firstVisibleTab, loadAccount, loadGroupCache, loadPrefs, menusEqual, parseMenu, saveAccount, saveGroupCache, savePrefs, tabAllowed, type MenuPrefs, type MenuSection, type NotifyChannel, type NotifyPrefs } from "../lib/storage";
-import { SyncClient, createGroup, fetchGroup, fetchIcsUrl, importSpondAccount, refreshSpondAccount, restoreGroup } from "../lib/sync";
+import { prepareMemberPhoto } from "../lib/photo";
+import { SyncClient, createGroup, deleteMemberPhoto, fetchGroup, fetchIcsUrl, importSpondAccount, refreshSpondAccount, restoreGroup, uploadMemberPhoto } from "../lib/sync";
 import type { Account, CalEvent, Dinner, Group, Membership, Profile, Session, ShopItem, Source, SpendList, Tab, TodoList, Wishlist } from "../types";
 
 interface AppContextValue {
@@ -45,6 +46,8 @@ interface AppContextValue {
   addMember: (name: string) => boolean;
   makeAdmin: (id: string) => void;
   setMemberColor: (id: string, color: string) => void;
+  setMemberPhoto: (id: string, file: File) => Promise<void>;
+  removeMemberPhoto: (id: string) => Promise<void>;
   renameGroup: (name: string) => void;
   upsertEvent: (event: CalEvent) => void;
   deleteEvent: (id: string) => void;
@@ -500,6 +503,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, { type: "member:color", id, color: next });
   };
 
+  const setMemberPhoto = async (id: string, file: File) => {
+    if (!session) throw new Error("Could not save that photo.");
+    const prepared = await prepareMemberPhoto(file);
+    const saved = await uploadMemberPhoto({
+      code: session.groupCode,
+      memberId: id,
+      actorId: session.profile.id,
+      blob: prepared.blob,
+      type: prepared.type,
+    });
+    setGroup((current) =>
+      current
+        ? {
+            ...current,
+            members: current.members.map((member) =>
+              member.id === id ? { ...member, photo: saved.photo, photoAt: saved.photoAt } : member,
+            ),
+          }
+        : current,
+    );
+  };
+
+  const removeMemberPhoto = async (id: string) => {
+    if (!session) throw new Error("Could not save that photo.");
+    await deleteMemberPhoto({ code: session.groupCode, memberId: id, actorId: session.profile.id });
+    setGroup((current) =>
+      current
+        ? {
+            ...current,
+            members: current.members.map((member) =>
+              member.id === id ? { ...member, photo: undefined, photoAt: undefined } : member,
+            ),
+          }
+        : current,
+    );
+  };
+
   const upsertEvent = (event: CalEvent) => {
     patch(
       (g) => ({
@@ -721,6 +761,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addMember,
         makeAdmin,
         setMemberColor,
+        setMemberPhoto,
+        removeMemberPhoto,
         renameGroup,
         upsertEvent,
         deleteEvent,

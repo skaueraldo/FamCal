@@ -4,6 +4,7 @@ import { uid } from "../lib/id";
 import { suggestShopItems } from "../lib/shop";
 import { useApp } from "../state/AppState";
 import type { ShopHistoryEntry } from "../types";
+import { MemberName } from "./MemberName";
 import { NotifyToggle } from "./NotifyToggle";
 
 export function ShoppingView() {
@@ -19,8 +20,6 @@ export function ShoppingView() {
     () => suggestShopItems(group?.shopHistory ?? [], group?.items ?? [], name),
     [group?.items, group?.shopHistory, name],
   );
-
-  const who = (id: string) => group?.members.find((m) => m.id === id)?.name ?? t("someone");
 
   const addNamed = (itemName: string, itemQty?: string) => {
     if (!itemName.trim() || !session) return;
@@ -115,7 +114,15 @@ export function ShoppingView() {
                     <strong>{item.name}</strong>
                     {item.qty ? ` · ${item.qty}` : ""}
                   </div>
-                  <div className="meta">{t("addedBy", { name: who(item.memberId) })}</div>
+                  <div className="meta">
+                    <MemberName
+                      memberId={item.memberId}
+                      members={group?.members}
+                      groupCode={group?.code}
+                      fallbackName={t("someone")}
+                      prefix={t("addedBy")}
+                    />
+                  </div>
                 </div>
                 <button className="icon-btn" aria-label={t("deleteItem")} onClick={() => deleteItem(item.id)}>
                   <Trash2 size={16} />

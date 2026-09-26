@@ -17,7 +17,9 @@ import {
   toISODate,
 } from "../lib/dates";
 import { useApp } from "../state/AppState";
+import { Avatar } from "./Avatar";
 import { DayAgenda } from "./DayAgenda";
+import { memberById } from "./MemberName";
 import { NotifyToggle } from "./NotifyToggle";
 
 type CalView = "day" | "tomorrow" | "week" | "month";
@@ -185,8 +187,15 @@ export function CalendarView() {
                       className="chip"
                       style={{ background: memberColor(occ.event.memberId) }}
                     >
-                      {occ.event.start ? `${formatTime(occ.event.start, language)} ` : ""}
-                      {occ.event.title}
+                      <Avatar
+                        member={memberById(group?.members, occ.event.memberId)}
+                        groupCode={group?.code}
+                        size="sm"
+                      />
+                      <span>
+                        {occ.event.start ? `${formatTime(occ.event.start, language)} ` : ""}
+                        {occ.event.title}
+                      </span>
                     </span>
                   ))}
                 </div>
@@ -233,8 +242,15 @@ export function CalendarView() {
                           className="chip"
                           style={{ background: memberColor(occ.event.memberId) }}
                         >
-                          {occ.event.start ? `${formatTime(occ.event.start, language)} ` : ""}
-                          {occ.event.title}
+                          <Avatar
+                            member={memberById(group?.members, occ.event.memberId)}
+                            groupCode={group?.code}
+                            size="sm"
+                          />
+                          <span>
+                            {occ.event.start ? `${formatTime(occ.event.start, language)} ` : ""}
+                            {occ.event.title}
+                          </span>
                         </span>
                       ))}
                       {events.length > 3 ? <span className="more">{t("moreEvents", { n: events.length - 3 })}</span> : null}
