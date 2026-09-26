@@ -10,6 +10,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-09-26",
+    items: [
+      {
+        en: "Member names in the calendar and lists show that person's avatar.",
+        no: "Medlemsnavn i kalenderen og listene viser avataren til personen.",
+      },
+      {
+        en: "Group members can add a profile photo to their avatar, or replace and remove it.",
+        no: "Gruppemedlemmer kan legge til et profilbilde på avataren sin, eller bytte og fjerne det.",
+      },
+    ],
+  },
+  {
     date: "2026-09-25",
     items: [
       {

@@ -36,7 +36,7 @@ const en = {
   activeGroup: "Open now",
   addAnotherGroup: "Add another group",
   cancelAddGroup: "Cancel",
-  signedInAs: "Signed in as {name}",
+  signedInAs: "Signed in as",
   leaveThisGroup: "Leave this group",
 
   householdMonth: "Household month",
@@ -90,6 +90,12 @@ const en = {
   colorAutomatic: "Use member color",
   assignTo: "Assign to",
   memberColor: "Color",
+  addPhoto: "Add photo",
+  replacePhoto: "Replace photo",
+  removePhoto: "Remove photo",
+  photoFailed: "Could not save that photo.",
+  photoTooLarge: "Choose a photo smaller than 2 MB.",
+  photoInvalid: "Use a JPEG, PNG, WebP, or GIF photo.",
   colorTaken: "Already taken",
   removeSeriesHint: "Removes every occurrence of this repeating activity",
 
@@ -104,7 +110,7 @@ const en = {
   markAsNeeded: "Mark as needed",
   deleteItem: "Delete item",
   emptyShoppingList: "Empty list",
-  addedBy: "added by {name}",
+  addedBy: "added by",
   shopSuggestions: "Add again",
   addSuggestedItem: "Add {name}",
 
@@ -322,7 +328,7 @@ const no: Record<MessageKey, string> = {
   activeGroup: "Åpen nå",
   addAnotherGroup: "Legg til en gruppe til",
   cancelAddGroup: "Avbryt",
-  signedInAs: "Logget inn som {name}",
+  signedInAs: "Logget inn som",
   leaveThisGroup: "Forlat denne gruppen",
 
   householdMonth: "Familiens måned",
@@ -376,6 +382,12 @@ const no: Record<MessageKey, string> = {
   colorAutomatic: "Bruk medlemsfarge",
   assignTo: "Tilordne",
   memberColor: "Farge",
+  addPhoto: "Legg til bilde",
+  replacePhoto: "Bytt bilde",
+  removePhoto: "Fjern bilde",
+  photoFailed: "Kunne ikke lagre det bildet.",
+  photoTooLarge: "Velg et bilde som er mindre enn 2 MB.",
+  photoInvalid: "Bruk et JPEG-, PNG-, WebP- eller GIF-bilde.",
   colorTaken: "Opptatt",
   removeSeriesHint: "Fjerner alle forekomstene av denne gjentakende aktiviteten",
 
@@ -390,7 +402,7 @@ const no: Record<MessageKey, string> = {
   markAsNeeded: "Merk som trengs",
   deleteItem: "Slett vare",
   emptyShoppingList: "Tøm listen",
-  addedBy: "lagt til av {name}",
+  addedBy: "lagt til av",
   shopSuggestions: "Legg til igjen",
   addSuggestedItem: "Legg til {name}",
 
@@ -605,6 +617,9 @@ export function mapKnownError(lang: Lang, message: string): string {
     "The calendar file had no events in it.": "calendarFileEmpty",
     "Could not fetch that calendar URL": "couldNotFetchCalendar",
     "Could not import that calendar URL": "couldNotImportCalendar",
+    "Could not save that photo.": "photoFailed",
+    "Choose a photo smaller than 2 MB.": "photoTooLarge",
+    "Use a JPEG, PNG, WebP, or GIF photo.": "photoInvalid",
   };
   const key = table[message];
   return key ? t(lang, key) : message;

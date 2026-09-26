@@ -3,6 +3,7 @@ import { useState, type CSSProperties, type FormEvent } from "react";
 import { memberColorOf } from "../lib/events";
 import { uid } from "../lib/id";
 import { useApp } from "../state/AppState";
+import { MemberName } from "./MemberName";
 import { MemberSelect } from "./MemberSelect";
 import { NotifyToggle } from "./NotifyToggle";
 
@@ -14,8 +15,6 @@ export function WishlistView() {
   const lists = [...(group?.wishlists ?? [])].sort((a, b) => b.createdAt - a.createdAt);
   const members = group?.members ?? [];
   const memberColor = (id: string) => memberColorOf(members, id);
-  const who = (id: string) => members.find((member) => member.id === id)?.name ?? t("someone");
-
   const addList = (event: FormEvent) => {
     event.preventDefault();
     if (!listName.trim() || !session) return;
@@ -97,8 +96,9 @@ export function WishlistView() {
             <div className="wishlist-head">
               <div>
                 <h2>{list.name}</h2>
-                <div className="meta">
-                  {t("itemsOnList", { n: list.items.length })} · {who(list.memberId)}
+                <div className="meta member-line">
+                  {t("itemsOnList", { n: list.items.length })}
+                  <MemberName memberId={list.memberId} members={members} groupCode={group?.code} fallbackName={t("someone")} />
                 </div>
               </div>
               <div className="list-assign">
@@ -119,8 +119,18 @@ export function WishlistView() {
               <div className="shop-list">
                 {list.items.map((item) => (
                   <div className="wish-item" key={item.id}>
-                    <i style={{ background: memberColor(list.memberId) }} />
-                    <strong>{item.name}</strong>
+                    <i style={{ background: memberColor(item.memberId) }} />
+                    <div>
+                      <strong>{item.name}</strong>
+                      <div className="meta">
+                        <MemberName
+                          memberId={item.memberId}
+                          members={members}
+                          groupCode={group?.code}
+                          fallbackName={t("someone")}
+                        />
+                      </div>
+                    </div>
                     <button className="icon-btn" aria-label={t("deleteItem")} onClick={() => removeItem(list.id, item.id)}>
                       <Trash2 size={16} />
                     </button>

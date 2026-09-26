@@ -2,6 +2,7 @@ import { Check, Plus, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { uid } from "../lib/id";
 import { useApp } from "../state/AppState";
+import { MemberName } from "./MemberName";
 import { NotifyToggle } from "./NotifyToggle";
 
 export function TodoView() {
@@ -92,7 +93,15 @@ export function TodoView() {
               <div className="wishlist-head">
                 <div>
                   <h2>{list.name}</h2>
-                  <div className="meta">{t("itemsOnList", { n: list.items.length })}</div>
+                  <div className="meta member-line">
+                    {t("itemsOnList", { n: list.items.length })}
+                    <MemberName
+                      memberId={list.memberId}
+                      members={group?.members}
+                      groupCode={group?.code}
+                      fallbackName={t("someone")}
+                    />
+                  </div>
                 </div>
                 <button className="btn danger" onClick={() => deleteTodoList(list.id)}>
                   {t("deleteTodoList")}
@@ -111,7 +120,17 @@ export function TodoView() {
                       >
                         {item.done ? <Check size={14} /> : null}
                       </button>
-                      <strong>{item.name}</strong>
+                      <div>
+                        <strong>{item.name}</strong>
+                        <div className="meta">
+                          <MemberName
+                            memberId={item.memberId}
+                            members={group?.members}
+                            groupCode={group?.code}
+                            fallbackName={t("someone")}
+                          />
+                        </div>
+                      </div>
                       <button className="icon-btn" aria-label={t("deleteItem")} onClick={() => removeItem(list.id, item.id)}>
                         <Trash2 size={16} />
                       </button>

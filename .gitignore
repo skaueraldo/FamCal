@@ -4,6 +4,7 @@ dist-ssr
 *.local
 .DS_Store
 data/*.json
+data/avatars
 .tools
 !.gitkeep
 public/assets

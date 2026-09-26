@@ -1,9 +1,10 @@
 import { Copy, Mail, Plus, RefreshCw, Upload } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { formatWhen } from "../lib/dates";
-import { initials } from "../lib/id";
 import { inviteAppLink, isInviteEmail } from "../lib/identity";
 import { useApp } from "../state/AppState";
+import { Avatar } from "./Avatar";
+import { MemberName } from "./MemberName";
 import { ColorPicks } from "./ColorPicks";
 import { GroupAccessForm } from "./GroupAccessForm";
 
@@ -21,6 +22,8 @@ export function GroupView() {
     addMember,
     makeAdmin,
     setMemberColor,
+    setMemberPhoto,
+    removeMemberPhoto,
     importIcsText,
     importIcsUrl,
     importSpond,
@@ -42,6 +45,8 @@ export function GroupView() {
   const [addError, setAddError] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   useEffect(() => {
     setGroupName(group?.name ?? "");
@@ -186,10 +191,18 @@ export function GroupView() {
               <div className={`group-switch-row${active ? " active" : ""}`} key={membership.groupCode}>
                 <div>
                   <strong>{membership.groupName || membership.groupCode}</strong>
-                  <div className="meta">
+                  <div className="meta member-line">
                     {membership.groupCode}
-                    {` · ${t("signedInAs", { name: membership.profile.name })}`}
-                    {active ? ` · ${t("activeGroup")}` : ""}
+                    <MemberName
+                      member={
+                        membership.groupCode === group?.code
+                          ? group.members.find((member) => member.id === membership.profile.id) ?? membership.profile
+                          : membership.profile
+                      }
+                      groupCode={membership.groupCode}
+                      prefix={t("signedInAs")}
+                    />
+                    {active ? t("activeGroup") : ""}
                   </div>
                 </div>
                 {active ? null : (
@@ -243,18 +256,17 @@ export function GroupView() {
           </form>
           {inviteError ? <p className="error">{inviteError}</p> : null}
         </div>
+        {photoError ? <p className="error">{photoError}</p> : null}
         <div className="member-list">
           {group?.members.map((member) => {
             const self = member.id === session?.profile.id;
             const canKick = isAdmin && !self && !(member.admin && adminCount < 2);
             const canPromote = isAdmin && !self && !member.admin;
-            const canColor = self || isAdmin;
+            const canEdit = self || isAdmin;
             return (
               <div className="member-row" key={member.id}>
                 <div className="member-who">
-                  <span className="avatar" style={{ background: member.color }}>
-                    {initials(member.name)}
-                  </span>
+                  <Avatar member={member} groupCode={group?.code} />
                   <div>
                     <strong>
                       {member.name}
@@ -264,7 +276,51 @@ export function GroupView() {
                   </div>
                 </div>
                 <div className="member-tools">
-                  {canColor ? (
+                  {canEdit ? (
+                    <div className="member-photo-tools">
+                      <label className={`btn secondary small${photoBusy === member.id ? " busy" : ""}`}>
+                        {member.photo ? t("replacePhoto") : t("addPhoto")}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          hidden
+                          disabled={photoBusy === member.id}
+                          onChange={(event) => {
+                            const input = event.currentTarget;
+                            const file = input.files?.[0];
+                            input.value = "";
+                            if (!file) return;
+                            setPhotoBusy(member.id);
+                            setPhotoError(null);
+                            void setMemberPhoto(member.id, file)
+                              .catch((err) => {
+                                setPhotoError(localizeError(err instanceof Error ? err.message : t("photoFailed")));
+                              })
+                              .finally(() => setPhotoBusy(null));
+                          }}
+                        />
+                      </label>
+                      {member.photo ? (
+                        <button
+                          type="button"
+                          className="btn ghost small"
+                          disabled={photoBusy === member.id}
+                          onClick={() => {
+                            setPhotoBusy(member.id);
+                            setPhotoError(null);
+                            void removeMemberPhoto(member.id)
+                              .catch((err) => {
+                                setPhotoError(localizeError(err instanceof Error ? err.message : t("photoFailed")));
+                              })
+                              .finally(() => setPhotoBusy(null));
+                          }}
+                        >
+                          {t("removePhoto")}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {canEdit ? (
                     <ColorPicks
                       value={member.color}
                       onChange={(color) => setMemberColor(member.id, color)}

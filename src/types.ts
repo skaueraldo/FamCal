@@ -4,6 +4,8 @@ export interface Member {
   id: string;
   name: string;
   color: string;
+  photo?: string;
+  photoAt?: number;
   admin?: boolean;
   menu?: Partial<Record<Exclude<Tab, "settings">, boolean>>;
 }
