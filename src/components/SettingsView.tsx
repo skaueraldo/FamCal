@@ -24,7 +24,7 @@ function isStandalone() {
 }
 
 export function SettingsView() {
-  const { theme, setTheme, language, setLanguage, menu, setMenuSection, session, t } = useApp();
+  const { theme, setTheme, language, setLanguage, menu, setMenuSection, t } = useApp();
   const installed = isStandalone();
   const [ownerGroups, setOwnerGroups] = useState<
     { name: string; owner: string; members: number; createdAt: number }[] | null
