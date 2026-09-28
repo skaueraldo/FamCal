@@ -427,8 +427,14 @@ if (process.env.NODE_ENV === "production") {
     express.static(dist, {
       setHeaders(res, filePath) {
         const name = filePath.replaceAll("\\", "/");
-        if (name.endsWith("/sw.js") || name.endsWith(".webmanifest") || name.endsWith(".html")) {
-          res.setHeader("Cache-Control", "no-cache");
+        if (
+          name.endsWith("/sw.js") ||
+          name.endsWith("/version.json") ||
+          name.endsWith(".webmanifest") ||
+          name.endsWith(".html")
+        ) {
+          res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+          res.setHeader("Pragma", "no-cache");
           return;
         }
         if (name.includes("/assets/")) {
@@ -438,7 +444,8 @@ if (process.env.NODE_ENV === "production") {
     }),
   );
   app.get(/.*/, (_req, res) => {
-    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
     res.sendFile(join(dist, "index.html"));
   });
 }

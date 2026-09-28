@@ -1,10 +1,22 @@
-// famcal-sw v2 — notifications only; do not intercept page loads.
+// famcal-sw v3 — notifications and update claims; do not cache page loads.
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    (async () => {
+      await self.clients.claim();
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of windows) client.postMessage({ type: "sw-activated" });
+    })(),
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  if (request.mode !== "navigate") return;
+  event.respondWith(fetch(request, { cache: "no-store" }).catch(() => fetch(request)));
 });
 
 self.addEventListener("notificationclick", (event) => {
