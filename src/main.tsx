@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { watchAppUpdates } from "./lib/appUpdate";
 import { ensureServiceWorker } from "./lib/notifications";
 import { AppProvider } from "./state/AppState";
 import "./index.css";
@@ -32,9 +33,13 @@ if (isStandaloneApp()) {
   });
 }
 
+watchAppUpdates();
+
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    void ensureServiceWorker();
+    void ensureServiceWorker().then((reg) => {
+      if (reg) void reg.update();
+    });
   });
 }
 

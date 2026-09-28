@@ -9,5 +9,6 @@ data/avatars
 !.gitkeep
 public/assets
 public/index.html
+public/version.json
 .vercel
 .env*

@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-09-28",
+    items: [
+      {
+        en: "The Home Screen app picks up new FamCal versions when you open it again.",
+        no: "Appen på Hjem-skjermen henter nye FamCal-versjoner når du åpner den igjen.",
+      },
+    ],
+  },
+  {
     date: "2026-09-26",
     items: [
       {
