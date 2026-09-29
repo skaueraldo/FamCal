@@ -34,7 +34,7 @@ const MORE_IDS: Tab[] = [...LIST_IDS, ...HOUSEHOLD_IDS];
 type BarSlot = NavItem | "more";
 
 function isOn(item: NavItem, menu: Record<Exclude<Tab, "settings">, boolean>) {
-  return item.id === "settings" || menu[item.id];
+  return item.id === "settings" || item.id === "todos" || menu[item.id];
 }
 
 function pick(ids: Tab[], visible: NavItem[]) {
@@ -44,8 +44,12 @@ function pick(ids: Tab[], visible: NavItem[]) {
 
 function mobileSlots(visible: NavItem[]): { bar: BarSlot[]; sheet: NavItem[] } {
   const primary = pick(PRIMARY_IDS, visible);
-  const sheet = pick(MORE_IDS, visible);
-  if (primary.length + sheet.length <= 4) return { bar: [...primary, ...sheet], sheet: [] };
+  const rest = pick(
+    MORE_IDS.filter((id) => id !== "todos"),
+    visible,
+  );
+  const todos = NAV_ITEMS.find((item) => item.id === "todos");
+  const sheet = todos ? [todos, ...rest] : rest;
   return { bar: [...primary, "more"], sheet };
 }
 
@@ -158,7 +162,7 @@ export function AppShell() {
         {tab === "calendar" && menu.calendar ? <CalendarView /> : null}
         {tab === "dinner" && menu.dinner ? <DinnerView /> : null}
         {tab === "shopping" && menu.shopping ? <ShoppingView /> : null}
-        {tab === "todos" && menu.todos ? <TodoView /> : null}
+        {tab === "todos" ? <TodoView /> : null}
         {tab === "spendings" && menu.spendings ? <SpendingView /> : null}
         {tab === "wishlist" && menu.wishlist ? <WishlistView /> : null}
         {tab === "group" && menu.group ? <GroupView /> : null}

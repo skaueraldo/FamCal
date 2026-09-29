@@ -13,6 +13,7 @@ import { normalizeColor } from "../lib/events";
 import { applyHomeScreenBrand } from "../lib/branding";
 import { rememberShopItem, seedShopHistory, shopKey } from "../lib/shop";
 import { memberByName, namesMatch, normalizeCode, reconcileProfile } from "../lib/identity";
+import { captureListLink, clearStashedListLink, stripListLinkFromUrl } from "../lib/listShare";
 import { parseIcs, sourceNameFromIcs } from "../lib/ics";
 import { mapKnownError, t as translate, type Lang, type MessageKey, type Theme } from "../lib/i18n";
 import { clearGroupCache, clearSession, defaultMenu, emptyNotify, firstVisibleTab, loadAccount, loadGroupCache, loadPrefs, menusEqual, parseMenu, saveAccount, saveGroupCache, savePrefs, tabAllowed, type MenuPrefs, type MenuSection, type NotifyChannel, type NotifyPrefs } from "../lib/storage";
@@ -22,7 +23,7 @@ import type { Account, CalEvent, Dinner, Group, Membership, Profile, Session, Sh
 
 interface AppContextValue {
   tab: Tab;
-  setTab: (tab: Tab) => void;
+  setTab: (tab: Tab, force?: boolean) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
   language: Lang;
@@ -36,6 +37,8 @@ interface AppContextValue {
   session: Session | null;
   memberships: Membership[];
   group: Group | null;
+  openListId: string | null;
+  clearOpenListId: () => void;
   status: "connecting" | "live" | "offline";
   error: string | null;
   startGroup: (name: string, groupName: string) => Promise<void>;
@@ -111,6 +114,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [group, setGroup] = useState<Group | null>(null);
   const [status, setStatus] = useState<"connecting" | "live" | "offline">("offline");
   const [error, setError] = useState<string | null>(null);
+  const [openListId, setOpenListId] = useState<string | null>(null);
   const sync = useRef(new SyncClient());
   const accountRef = useRef(account);
   accountRef.current = account;
@@ -173,9 +177,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return next;
   };
 
-  const setTab = (next: Tab) => {
+  const setTab = (next: Tab, force = false) => {
     setTabState((current) => {
-      const allowed = next === "settings" || menu[next as MenuSection];
+      const allowed = force || tabAllowed(next, menu);
       const resolved = allowed ? next : firstVisibleTab(menu);
       if (resolved === current) return current;
       setPrefs((prefsNow) => persistPrefs({ ...prefsNow, tab: resolved }));
@@ -417,6 +421,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     else setGroup(null);
     setError(null);
   };
+
+  const openedListLink = useRef(false);
+  useEffect(() => {
+    const link = captureListLink();
+    if (!link || openedListLink.current) return;
+    if (!session) return;
+    if (normalizeCode(session.groupCode) !== link.code) {
+      if (memberships.some((item) => item.groupCode === link.code)) switchGroup(link.code);
+      return;
+    }
+    if (!group || normalizeCode(group.code) !== link.code) return;
+    openedListLink.current = true;
+    const section = link.tab as MenuSection;
+    if (!menu[section]) setMenuSection(section, true);
+    setTab(link.tab, true);
+    setOpenListId(link.listId);
+    clearStashedListLink();
+    stripListLinkFromUrl();
+  }, [session, group, memberships]);
 
   const leaveGroup = () => {
     sync.current.disconnect();
@@ -751,6 +774,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         session,
         memberships,
         group,
+        openListId,
+        clearOpenListId: () => setOpenListId(null),
         status,
         error,
         startGroup,

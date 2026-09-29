@@ -75,6 +75,8 @@ export interface Wishlist {
   name: string;
   memberId: string;
   createdAt: number;
+  folder?: string;
+  archivedAt?: number;
   items: WishItem[];
 }
 
@@ -91,6 +93,8 @@ export interface TodoList {
   name: string;
   memberId: string;
   createdAt: number;
+  folder?: string;
+  archivedAt?: number;
   items: TodoItem[];
 }
 
@@ -109,6 +113,8 @@ export interface SpendList {
   name: string;
   memberId: string;
   createdAt: number;
+  folder?: string;
+  archivedAt?: number;
   items: SpendItem[];
 }
 

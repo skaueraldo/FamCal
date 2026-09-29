@@ -101,7 +101,7 @@ export function SettingsView() {
           {t("menuLede")}
         </p>
         <div className="menu-toggles" role="group" aria-label={t("menuTitle")}>
-          {MENU_SECTIONS.map((section) => {
+          {MENU_SECTIONS.filter((section) => section !== "todos").map((section) => {
             const on = menu[section];
             return (
               <label key={section} className={`menu-toggle${on ? " on" : ""}`}>

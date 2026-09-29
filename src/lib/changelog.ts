@@ -10,6 +10,39 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-09-29",
+    items: [
+      {
+        en: "Lists are grouped into folders, standalone lists, and archived.",
+        no: "Listene er delt i mapper, lister uten mappe og arkivert.",
+      },
+      {
+        en: "You can open or close every list in a folder at once, and add a list from inside the folder.",
+        no: "Du kan åpne eller lukke alle lister i en mappe samtidig, og legge til en liste fra mappen.",
+      },
+      {
+        en: "You can archive a to-do, wish, or spending list and restore it later.",
+        no: "Du kan arkivere en gjøremål-, ønskeliste- eller utleggsliste og hente den frem igjen.",
+      },
+      {
+        en: "Lists in a folder stay closed until you open one.",
+        no: "Lister i en mappe er lukket til du åpner en.",
+      },
+      {
+        en: "To-do, wish, and spending lists can sit together in a folder.",
+        no: "Gjøremål, ønskelister og utlegg kan samles i en mappe.",
+      },
+      {
+        en: "Each to-do, wish, and spending list has a link you can copy or share.",
+        no: "Hver gjøremål-, ønskeliste- og utleggsliste har en lenke du kan kopiere eller dele.",
+      },
+      {
+        en: "To-do lists are in More, under Lists.",
+        no: "Gjøremål ligger under Lister i Mer.",
+      },
+    ],
+  },
+  {
     date: "2026-09-28",
     items: [
       {
