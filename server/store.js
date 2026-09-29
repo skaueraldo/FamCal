@@ -234,6 +234,21 @@ export function createDurableStore(fileStore) {
   };
 }
 
+function sanitizeNamedList(list) {
+  if (!list || !list.id) return null;
+  const folder = String(list.folder || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, 40);
+  const archivedAt = Number(list.archivedAt);
+  const next = { ...list };
+  if (folder) next.folder = folder;
+  else delete next.folder;
+  if (Number.isFinite(archivedAt) && archivedAt > 0) next.archivedAt = archivedAt;
+  else delete next.archivedAt;
+  return next;
+}
+
 export function sanitizeGroup(raw) {
   if (!raw || typeof raw !== "object") return null;
   const code = String(raw.code || "")
@@ -281,9 +296,9 @@ export function sanitizeGroup(raw) {
         }));
     })(),
     dinners: asArray(raw.dinners).filter((dinner) => dinner && dinner.id),
-    wishlists: asArray(raw.wishlists).filter((list) => list && list.id),
-    todos: asArray(raw.todos).filter((list) => list && list.id),
-    spendings: asArray(raw.spendings).filter((list) => list && list.id),
+    wishlists: asArray(raw.wishlists).map(sanitizeNamedList).filter(Boolean),
+    todos: asArray(raw.todos).map(sanitizeNamedList).filter(Boolean),
+    spendings: asArray(raw.spendings).map(sanitizeNamedList).filter(Boolean),
     sources: asArray(raw.sources)
       .filter((source) => source && source.id)
       .map(({ password, token, ...source }) => source),

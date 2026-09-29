@@ -72,7 +72,7 @@ export function menusEqual(left: MenuPrefs, right: MenuPrefs): boolean {
 }
 
 export function tabAllowed(tab: Tab, menu: MenuPrefs): boolean {
-  return tab === "settings" || Boolean(menu[tab as MenuSection]);
+  return tab === "settings" || tab === "todos" || Boolean(menu[tab as MenuSection]);
 }
 
 export function firstVisibleTab(menu: MenuPrefs): Tab {
