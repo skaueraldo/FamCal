@@ -1,5 +1,5 @@
-import { CalendarDays, ChevronDown, Gift, ListTodo, Settings, ShoppingBasket, Soup, Users, Wallet, type LucideIcon } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { CalendarDays, Ellipsis, Gift, ListTodo, Settings, ShoppingBasket, Soup, Users, Wallet, type LucideIcon } from "lucide-react";
+import { useEffect, useLayoutEffect, useState, type CSSProperties } from "react";
 import { useApp } from "../state/AppState";
 import type { Tab } from "../types";
 import { CalendarView } from "./CalendarView";
@@ -11,7 +11,11 @@ import { SpendingView } from "./SpendingView";
 import { TodoView } from "./TodoView";
 import { WishlistView } from "./WishlistView";
 
-const items: { id: Tab; icon: LucideIcon; label: "tabCalendar" | "tabDinner" | "tabShopping" | "tabTodos" | "tabSpendings" | "tabWishlist" | "tabGroup" | "tabSettings" }[] = [
+type NavLabel = "tabCalendar" | "tabDinner" | "tabShopping" | "tabTodos" | "tabSpendings" | "tabWishlist" | "tabGroup" | "tabSettings";
+
+type NavItem = { id: Tab; icon: LucideIcon; label: NavLabel };
+
+const NAV_ITEMS: NavItem[] = [
   { id: "calendar", icon: CalendarDays, label: "tabCalendar" },
   { id: "dinner", icon: Soup, label: "tabDinner" },
   { id: "shopping", icon: ShoppingBasket, label: "tabShopping" },
@@ -22,84 +26,128 @@ const items: { id: Tab; icon: LucideIcon; label: "tabCalendar" | "tabDinner" | "
   { id: "settings", icon: Settings, label: "tabSettings" },
 ];
 
-const DOCK_COL_MIN = 72;
+const PRIMARY_IDS: Tab[] = ["calendar", "shopping", "dinner"];
+const LIST_IDS: Tab[] = ["todos", "spendings", "wishlist"];
+const HOUSEHOLD_IDS: Tab[] = ["group", "settings"];
+const MORE_IDS: Tab[] = [...LIST_IDS, ...HOUSEHOLD_IDS];
+
+type BarSlot = NavItem | "more";
+
+function isOn(item: NavItem, menu: Record<Exclude<Tab, "settings">, boolean>) {
+  return item.id === "settings" || menu[item.id];
+}
+
+function pick(ids: Tab[], visible: NavItem[]) {
+  const byId = new Map(visible.map((item) => [item.id, item]));
+  return ids.map((id) => byId.get(id)).filter((item): item is NavItem => Boolean(item));
+}
+
+function mobileSlots(visible: NavItem[]): { bar: BarSlot[]; sheet: NavItem[] } {
+  const primary = pick(PRIMARY_IDS, visible);
+  const sheet = pick(MORE_IDS, visible);
+  if (primary.length + sheet.length <= 4) return { bar: [...primary, ...sheet], sheet: [] };
+  return { bar: [...primary, "more"], sheet };
+}
 
 export function AppShell() {
   const { tab, setTab, t, menu, group } = useApp();
-  const visible = items.filter((item) => item.id === "settings" || menu[item.id]);
-  const dockRef = useRef<HTMLElement>(null);
-  const [open, setOpen] = useState(false);
+  const visible = NAV_ITEMS.filter((item) => isOn(item, menu));
   const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches);
-  const [cols, setCols] = useState(visible.length);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useLayoutEffect(() => {
-    const el = dockRef.current;
-    if (!el) return;
-    const measure = () => {
-      const wideNow = window.matchMedia("(min-width: 900px)").matches;
-      setWide(wideNow);
-      if (wideNow) {
-        setOpen(false);
-        return;
-      }
-      const styles = getComputedStyle(el);
-      const pad = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
-      const gap = parseFloat(styles.columnGap || styles.gap) || 4;
-      const inner = el.clientWidth - pad;
-      setCols(Math.max(1, Math.floor((inner + gap) / (DOCK_COL_MIN + gap))));
+    const mq = window.matchMedia("(min-width: 900px)");
+    const sync = () => {
+      setWide(mq.matches);
+      if (mq.matches) setMoreOpen(false);
     };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    window.addEventListener("resize", measure);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", measure);
-    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
   }, []);
 
-  const overflow = !wide && visible.length > cols;
-  const shown =
-    overflow && !open && !visible.slice(0, cols).some((item) => item.id === tab)
-      ? [visible.find((item) => item.id === tab) ?? visible[0], ...visible.filter((item) => item.id !== tab)]
-      : visible;
+  const { bar, sheet } = wide ? { bar: visible as BarSlot[], sheet: [] } : mobileSlots(visible);
+  const moreActive = sheet.some((item) => item.id === tab);
+  const listItems = sheet.filter((item) => LIST_IDS.includes(item.id));
+  const householdItems = sheet.filter((item) => HOUSEHOLD_IDS.includes(item.id));
+
+  useEffect(() => {
+    if (sheet.length === 0) setMoreOpen(false);
+  }, [sheet.length]);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMoreOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [moreOpen]);
+
+  const go = (id: Tab) => {
+    setTab(id);
+    setMoreOpen(false);
+  };
+
+  const renderTab = (item: NavItem) => {
+    const Icon = item.icon;
+    return (
+      <button key={item.id} type="button" className={tab === item.id ? "active" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => go(item.id)}>
+        <Icon size={18} />
+        <span>{t(item.label)}</span>
+      </button>
+    );
+  };
+
+  const renderMoreRow = (item: NavItem) => {
+    const Icon = item.icon;
+    return (
+      <button key={item.id} type="button" className={tab === item.id ? "active" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => go(item.id)}>
+        <Icon size={18} />
+        <span>{t(item.label)}</span>
+      </button>
+    );
+  };
 
   return (
-    <div className={`shell${open && overflow ? " dock-open" : ""}`}>
-      <nav ref={dockRef} className={`dock${open ? " open" : ""}${overflow ? " has-more" : ""}`} aria-label={t("navMain")}>
+    <div className="shell">
+      {moreOpen ? <button type="button" className="more-backdrop" aria-label={t("moreClose")} onClick={() => setMoreOpen(false)} /> : null}
+      <nav className={`dock${moreOpen ? " more-open" : ""}`} aria-label={t("navMain")} style={{ "--dock-cols": String(Math.max(1, bar.length)) } as CSSProperties}>
+        {moreOpen && sheet.length ? (
+          <div className="more-sheet" id="more-sheet" role="dialog" aria-modal="true" aria-label={t("tabMore")}>
+            {listItems.length ? (
+              <div className="more-group">
+                <p className="more-heading">{t("moreLists")}</p>
+                {listItems.map(renderMoreRow)}
+              </div>
+            ) : null}
+            {householdItems.length ? (
+              <div className="more-group">
+                <p className="more-heading">{t("moreHousehold")}</p>
+                {householdItems.map(renderMoreRow)}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <div className="dock-items">
-          {shown.map((item, index) => {
-            const Icon = item.icon;
-            const hidden = overflow && !open && index >= cols;
+          {bar.map((slot) => {
+            if (slot !== "more") return renderTab(slot);
             return (
               <button
-                key={item.id}
+                key="more"
                 type="button"
-                className={tab === item.id ? "active" : ""}
-                tabIndex={hidden ? -1 : undefined}
-                aria-hidden={hidden || undefined}
-                onClick={() => {
-                  setTab(item.id);
-                  setOpen(false);
-                }}
+                className={moreActive || moreOpen ? "active" : ""}
+                aria-expanded={moreOpen}
+                aria-controls="more-sheet"
+                aria-haspopup="dialog"
+                onClick={() => setMoreOpen((current) => !current)}
               >
-                <Icon size={18} />
-                <span>{t(item.label)}</span>
+                <Ellipsis size={18} />
+                <span>{t("tabMore")}</span>
               </button>
             );
           })}
         </div>
-        {overflow ? (
-          <button
-            type="button"
-            className="dock-toggle"
-            aria-expanded={open}
-            aria-label={open ? t("menuCollapse") : t("menuExpand")}
-            onClick={() => setOpen((current) => !current)}
-          >
-            <ChevronDown size={16} />
-          </button>
-        ) : null}
       </nav>
       <div className="workspace">
         {group?.name ? (

@@ -13,6 +13,10 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-09-28",
     items: [
       {
+        en: "On a phone, the menu is Calendar, Shopping, Dinner, and More.",
+        no: "På telefon er menyen Kalender, Handleliste, Middag og Mer.",
+      },
+      {
         en: "The Home Screen app picks up new FamCal versions when you open it again.",
         no: "Appen på Hjem-skjermen henter nye FamCal-versjoner når du åpner den igjen.",
       },

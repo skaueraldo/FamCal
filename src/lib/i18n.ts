@@ -10,9 +10,11 @@ const en = {
   tabWishlist: "Wishlist",
   tabGroup: "Group",
   tabSettings: "Settings",
+  tabMore: "More",
   navMain: "Main",
-  menuExpand: "Show more sections",
-  menuCollapse: "Show fewer sections",
+  moreLists: "Lists",
+  moreHousehold: "Household",
+  moreClose: "Close menu",
 
   welcomeTitle: "A shared month, and the shopping list beside it.",
   welcomeLede:
@@ -302,9 +304,11 @@ const no: Record<MessageKey, string> = {
   tabWishlist: "Ønskeliste",
   tabGroup: "Gruppe",
   tabSettings: "Innstillinger",
+  tabMore: "Mer",
   navMain: "Hovedmeny",
-  menuExpand: "Vis flere seksjoner",
-  menuCollapse: "Vis færre seksjoner",
+  moreLists: "Lister",
+  moreHousehold: "Husstand",
+  moreClose: "Lukk menyen",
 
   welcomeTitle: "En felles måned, og handlelisten ved siden av.",
   welcomeLede:

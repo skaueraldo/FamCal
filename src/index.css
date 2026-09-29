@@ -120,7 +120,7 @@ a,
 .shop-item,
 .event-row,
 .dock-items button,
-.dock-toggle {
+.more-sheet button {
   transition:
     background-color 0.16s ease,
     color 0.16s ease,
@@ -277,11 +277,7 @@ label.btn {
 .shell {
   width: min(1160px, calc(100% - 28px));
   margin: 0 auto;
-  padding: 20px 0 calc(118px + var(--safe-bottom));
-}
-
-.shell.dock-open {
-  padding-bottom: calc(176px + var(--safe-bottom));
+  padding: 20px 0 calc(96px + var(--safe-bottom));
 }
 
 .topbar {
@@ -717,14 +713,8 @@ label.btn {
 
 .dock-items {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  grid-template-columns: repeat(var(--dock-cols, 4), minmax(0, 1fr));
   gap: 4px;
-}
-
-.dock.has-more:not(.open) .dock-items {
-  grid-template-rows: auto;
-  grid-auto-rows: 0;
-  overflow: hidden;
 }
 
 .dock-items button {
@@ -732,13 +722,14 @@ label.btn {
   background: transparent;
   color: var(--dock-text);
   border-radius: 16px;
-  padding: 8px 4px 6px;
+  padding: 6px 4px;
   min-width: 0;
+  min-height: 44px;
   display: grid;
   justify-items: center;
   align-content: center;
   gap: 3px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.01em;
 }
@@ -754,30 +745,59 @@ label.btn {
   overflow-wrap: anywhere;
 }
 
-.dock-items button.active {
+.dock-items button.active,
+.more-sheet button.active {
   background: var(--dock-active);
   color: var(--dock-active-ink);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
-.dock-toggle {
+.more-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--ink) 22%, transparent);
+}
+
+.more-sheet {
+  display: grid;
+  gap: 10px;
+  padding: 6px 4px 10px;
+  max-height: min(52vh, 420px);
+  overflow: auto;
+}
+
+.more-group {
+  display: grid;
+  gap: 2px;
+}
+
+.more-heading {
+  margin: 0 8px 2px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.more-sheet button {
   border: 0;
   background: transparent;
   color: var(--dock-text);
-  width: 100%;
-  min-height: 22px;
-  padding: 0;
+  border-radius: 14px;
+  min-height: 44px;
+  padding: 8px 10px;
   display: grid;
-  place-items: center;
-  border-radius: 12px;
-}
-
-.dock-toggle svg {
-  transition: transform 0.16s ease;
-}
-
-.dock.open .dock-toggle svg {
-  transform: rotate(180deg);
+  grid-template-columns: 22px 1fr;
+  align-items: center;
+  justify-items: start;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .panel {
@@ -1691,7 +1711,7 @@ label.btn {
   }
 
   .dock-items button:hover:not(.active),
-  .dock-toggle:hover {
+  .more-sheet button:hover:not(.active) {
     background: color-mix(in srgb, var(--ink) 6%, transparent);
     color: var(--ink);
   }
@@ -1707,7 +1727,7 @@ label.btn {
   .shop-item,
   .event-row,
   .dock-items button,
-  .dock-toggle {
+  .more-sheet button {
     transition: none;
   }
 }
@@ -1746,7 +1766,8 @@ label.btn {
     width: 100%;
   }
 
-  .dock-toggle {
+  .more-backdrop,
+  .more-sheet {
     display: none;
   }
 
