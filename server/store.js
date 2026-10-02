@@ -234,6 +234,25 @@ export function createDurableStore(fileStore) {
   };
 }
 
+function sanitizeEvent(event) {
+  if (!event || !event.id) return null;
+  const seen = new Set();
+  const dates = (Array.isArray(event.dates) ? event.dates : [])
+    .map((value) => String(value || "").slice(0, 10))
+    .filter((iso) => /^\d{4}-\d{2}-\d{2}$/.test(iso))
+    .filter((iso) => {
+      if (seen.has(iso)) return false;
+      seen.add(iso);
+      return true;
+    })
+    .sort()
+    .slice(0, 62);
+  const next = { ...event };
+  if (dates.length > 1) next.dates = dates;
+  else delete next.dates;
+  return next;
+}
+
 function sanitizeNamedList(list) {
   if (!list || !list.id) return null;
   const folder = String(list.folder || "")
@@ -274,7 +293,7 @@ export function sanitizeGroup(raw) {
         };
       }),
     kickedIds: asArray(raw.kickedIds).map(String).filter(Boolean),
-    events: asArray(raw.events).filter((event) => event && event.id),
+    events: asArray(raw.events).map(sanitizeEvent).filter(Boolean),
     items: asArray(raw.items).filter((item) => item && item.id),
     shopHistory: (() => {
       const saved = asArray(raw.shopHistory)
