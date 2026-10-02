@@ -1,15 +1,15 @@
 import { useRef, useState, type FormEvent } from "react";
-import { formatOccurrenceWhen, memberColorOf, occurrencesOnDay } from "../lib/events";
+import { eventDates, formatOccurrenceWhen, memberColorOf, occurrencesOnDay, uniqueDates } from "../lib/events";
 import { uid } from "../lib/id";
 import type { CalEvent, RepeatRule } from "../types";
 import { useApp } from "../state/AppState";
+import { EventDayPicker } from "./EventDayPicker";
 import { MemberName } from "./MemberName";
 import { MemberSelect } from "./MemberSelect";
 
 const emptyForm = (iso: string, memberId = "") => ({
   title: "",
-  fromDate: iso,
-  toDate: iso,
+  days: [iso],
   start: "",
   end: "",
   repeat: "none" as RepeatRule | "none",
@@ -23,8 +23,7 @@ export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boo
   const formRef = useRef<HTMLFormElement>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
-  const [fromDate, setFromDate] = useState(iso);
-  const [toDate, setToDate] = useState(iso);
+  const [days, setDays] = useState<string[]>([iso]);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [repeat, setRepeat] = useState<RepeatRule | "none">("none");
@@ -40,9 +39,9 @@ export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boo
     Boolean(session && !event.sourceId && (event.memberId === session.profile.id || isAdmin));
 
   const applyForm = (next: ReturnType<typeof emptyForm>) => {
+    const picked = uniqueDates(next.days);
     setTitle(next.title);
-    setFromDate(next.fromDate);
-    setToDate(next.toDate);
+    setDays(picked.length ? picked : [iso]);
     setStart(next.start);
     setEnd(next.end);
     setRepeat(next.repeat);
@@ -60,8 +59,7 @@ export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boo
     setEditingId(event.id);
     applyForm({
       title: event.title,
-      fromDate: event.date,
-      toDate: event.endDate && event.endDate >= event.date ? event.endDate : event.date,
+      days: eventDates(event),
       start: event.start ?? "",
       end: event.end ?? "",
       repeat: event.repeat ?? "none",
@@ -74,15 +72,16 @@ export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boo
 
   const save = (event: FormEvent) => {
     event.preventDefault();
-    if (!title.trim() || !session || !fromDate) return;
-    const untilDate = toDate && toDate >= fromDate ? toDate : fromDate;
+    if (!title.trim() || !session) return;
+    const picked = uniqueDates(days);
+    if (!picked.length) return;
     const existing = editingId ? group?.events.find((item) => item.id === editingId) : undefined;
     if (editingId && (!existing || !canChange(existing))) return;
     upsertEvent({
       id: existing?.id ?? uid("evt"),
       title: title.trim(),
-      date: fromDate,
-      endDate: untilDate !== fromDate ? untilDate : undefined,
+      date: picked[0],
+      ...(picked.length > 1 ? { dates: picked } : {}),
       start: start || undefined,
       end: end || undefined,
       notes: notes.trim() || undefined,
@@ -93,17 +92,12 @@ export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boo
     resetForm();
   };
 
-  const onFromDate = (value: string) => {
-    setFromDate(value);
-    if (!toDate || toDate < value) setToDate(value);
-  };
-
   return (
     <div className="day-agenda-stack">
       <div className={`card day-events${isToday ? " today" : ""}`}>
         <h2>{t("eventsOnThisDay")}</h2>
         {events.length === 0 ? (
-          <p className="empty">{t("nothingOnThisDay")}</p>
+          <p className="empty">{t(isToday ? "nothingTodayYet" : "nothingOnThisDay")}</p>
         ) : (
           <div className="event-list">
             {events.map((occ) => {
@@ -124,6 +118,7 @@ export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boo
                         weekly: t("repeatWeekly"),
                         monthly: t("repeatMonthly"),
                         yearly: t("repeatYearly"),
+                        daysCount: t("eventDaysCount", { n: eventDates(occ.event).length }),
                       })}
                       <MemberName memberId={occ.event.memberId} members={members} groupCode={group?.code} fallbackName={t("someone")} />
                     </div>
@@ -162,18 +157,11 @@ export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boo
           <span>{t("eventTitle")}</span>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("eventPlaceholder")} />
         </label>
+        <EventDayPicker selected={days} onChange={setDays} />
         <div className="when-grid">
-          <label className="field">
-            <span>{t("fromDate")}</span>
-            <input type="date" value={fromDate} onChange={(e) => onFromDate(e.target.value)} required />
-          </label>
           <label className="field">
             <span>{t("fromTime")}</span>
             <input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
-          </label>
-          <label className="field">
-            <span>{t("toDate")}</span>
-            <input type="date" value={toDate} min={fromDate} onChange={(e) => setToDate(e.target.value)} required />
           </label>
           <label className="field">
             <span>{t("toTime")}</span>
@@ -196,7 +184,7 @@ export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boo
           ) : (
             <label className="field">
               <span>{t("repeatUntil")}</span>
-              <input type="date" value={repeatUntil} min={fromDate} onChange={(e) => setRepeatUntil(e.target.value)} />
+              <input type="date" value={repeatUntil} min={uniqueDates(days)[0] || iso} onChange={(e) => setRepeatUntil(e.target.value)} />
             </label>
           )}
         </div>

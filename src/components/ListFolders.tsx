@@ -12,6 +12,7 @@ export function ListFolderField({
   folders,
   datalistId,
   resetKey = 0,
+  reveal = false,
   onChange,
   onCommit,
 }: {
@@ -19,10 +20,24 @@ export function ListFolderField({
   folders: string[];
   datalistId: string;
   resetKey?: number;
+  reveal?: boolean;
   onChange?: (value: string) => void;
   onCommit?: (value: string) => void;
 }) {
   const { t } = useApp();
+  const [open, setOpen] = useState(() => !reveal || Boolean(value));
+
+  useEffect(() => {
+    setOpen(!reveal || Boolean(value));
+  }, [resetKey, reveal]);
+
+  if (reveal && !open) {
+    return (
+      <button className="btn secondary small list-folder-reveal" type="button" onClick={() => setOpen(true)}>
+        {t("listFolderAdd")}
+      </button>
+    );
+  }
 
   return (
     <>
@@ -32,13 +47,15 @@ export function ListFolderField({
         list={datalistId}
         defaultValue={value}
         aria-label={t("listFolder")}
-        placeholder={t("listFolderPlaceholder")}
+        placeholder={reveal ? t("listFolderNamePlaceholder") : t("listFolderPlaceholder")}
+        autoFocus={reveal && !value}
         onChange={(event) => onChange?.(event.target.value)}
         onBlur={(event) => {
           const next = listFolder(event.currentTarget.value);
           event.currentTarget.value = next;
           onChange?.(next);
           onCommit?.(next);
+          if (reveal && !next) setOpen(false);
         }}
         onKeyDown={(event) => {
           if (event.key !== "Enter" || !onCommit) return;

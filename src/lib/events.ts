@@ -40,6 +40,22 @@ export interface EventOccurrence {
   startDate: string;
 }
 
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+export function uniqueDates(raw: unknown): string[] {
+  const list = Array.isArray(raw) ? raw : [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of list) {
+    const iso = String(item || "").slice(0, 10);
+    if (!ISO_DAY.test(iso) || seen.has(iso)) continue;
+    seen.add(iso);
+    out.push(iso);
+  }
+  out.sort();
+  return out.slice(0, 62);
+}
+
 export function eventSpanEnd(event: CalEvent): string {
   const end = event.endDate?.slice(0, 10);
   return end && end >= event.date ? end : event.date;
@@ -49,6 +65,33 @@ export function spanLength(event: CalEvent): number {
   const start = parseISODate(event.date);
   const end = parseISODate(eventSpanEnd(event));
   return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+}
+
+export function eventDates(event: CalEvent): string[] {
+  const explicit = uniqueDates(event.dates);
+  if (explicit.length) return explicit;
+  const days: string[] = [];
+  let current = event.date.slice(0, 10);
+  const last = eventSpanEnd(event);
+  if (!ISO_DAY.test(current)) return [];
+  while (current <= last) {
+    days.push(current);
+    current = toISODate(addDays(parseISODate(current), 1));
+  }
+  return days;
+}
+
+export function datesAreContiguous(dates: string[]): boolean {
+  const sorted = uniqueDates(dates);
+  if (sorted.length <= 1) return true;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] !== toISODate(addDays(parseISODate(sorted[i - 1]), 1))) return false;
+  }
+  return true;
+}
+
+function dayOffset(from: string, to: string): number {
+  return Math.round((parseISODate(to).getTime() - parseISODate(from).getTime()) / 86400000);
 }
 
 export function shiftDate(iso: string, repeat: RepeatRule, steps: number): string {
@@ -63,9 +106,29 @@ export function occurrencesInRange(events: CalEvent[], from: string, to: string)
   const out: EventOccurrence[] = [];
   for (const event of events) {
     if (!event.date) continue;
-    const span = spanLength(event);
+    const picked = uniqueDates(event.dates);
     const freq = event.repeat;
     const max = freq ? 400 : 1;
+    if (picked.length) {
+      const origin = picked[0];
+      const offsets = picked.map((iso) => dayOffset(origin, iso));
+      const lastOffset = offsets[offsets.length - 1] ?? 0;
+      for (let i = 0; i < max; i++) {
+        const startDate = freq ? shiftDate(origin, freq, i) : origin;
+        if (event.repeatUntil && startDate > event.repeatUntil) break;
+        if (startDate > to) break;
+        const last = toISODate(addDays(parseISODate(startDate), lastOffset));
+        if (last < from) continue;
+        for (const offset of offsets) {
+          const iso = toISODate(addDays(parseISODate(startDate), offset));
+          if (iso < from || iso > to) continue;
+          out.push({ event, iso, startDate });
+        }
+        if (!freq) break;
+      }
+      continue;
+    }
+    const span = spanLength(event);
     for (let i = 0; i < max; i++) {
       const startDate = freq ? shiftDate(event.date, freq, i) : event.date;
       if (event.repeatUntil && startDate > event.repeatUntil) break;
@@ -111,11 +174,11 @@ export function occurrenceEndDate(occ: EventOccurrence): string {
 export function formatOccurrenceWhen(
   occ: EventOccurrence,
   lang: Lang,
-  labels: { allDay: string; daily: string; weekly: string; monthly: string; yearly: string },
+  labels: { allDay: string; daily: string; weekly: string; monthly: string; yearly: string; daysCount: string },
 ): string {
   const event = occ.event;
-  const endDate = occurrenceEndDate(occ);
-  const multi = occ.startDate !== endDate;
+  const days = eventDates(event);
+  const multi = days.length > 1;
   const repeat =
     event.repeat === "daily"
       ? labels.daily
@@ -131,7 +194,13 @@ export function formatOccurrenceWhen(
       ? `${formatTime(event.start, lang)} – ${formatTime(event.end, lang)}`
       : formatTime(event.start, lang)
     : "";
-  const range = multi ? `${formatDayShort(occ.startDate, lang)} – ${formatDayShort(endDate, lang)}` : "";
+  const range = !multi
+    ? ""
+    : datesAreContiguous(days)
+      ? `${formatDayShort(days[0], lang)} – ${formatDayShort(days[days.length - 1], lang)}`
+      : days.length <= 4
+        ? days.map((iso) => formatDayShort(iso, lang)).join(", ")
+        : labels.daysCount;
   const parts = [range, time || (multi ? "" : labels.allDay), repeat].filter(Boolean);
   return parts.join(" · ");
 }
