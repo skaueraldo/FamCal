@@ -1,5 +1,5 @@
-import { CalendarDays, Ellipsis, Gift, ListTodo, Settings, ShoppingBasket, Soup, Users, Wallet, type LucideIcon } from "lucide-react";
-import { useEffect, useLayoutEffect, useState, type CSSProperties } from "react";
+import { CalendarDays, Gift, ListTodo, Menu, Settings, ShoppingBasket, Soup, Users, Wallet, type LucideIcon } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useApp } from "../state/AppState";
 import type { Tab } from "../types";
 import { CalendarView } from "./CalendarView";
@@ -26,12 +26,9 @@ const NAV_ITEMS: NavItem[] = [
   { id: "settings", icon: Settings, label: "tabSettings" },
 ];
 
-const PRIMARY_IDS: Tab[] = ["calendar", "shopping", "dinner"];
+const DAILY_IDS: Tab[] = ["calendar", "shopping", "dinner"];
 const LIST_IDS: Tab[] = ["todos", "spendings", "wishlist"];
 const HOUSEHOLD_IDS: Tab[] = ["group", "settings"];
-const MORE_IDS: Tab[] = [...LIST_IDS, ...HOUSEHOLD_IDS];
-
-type BarSlot = NavItem | "more";
 
 function isOn(item: NavItem, menu: Record<Exclude<Tab, "settings">, boolean>) {
   return item.id === "settings" || item.id === "todos" || menu[item.id];
@@ -42,58 +39,63 @@ function pick(ids: Tab[], visible: NavItem[]) {
   return ids.map((id) => byId.get(id)).filter((item): item is NavItem => Boolean(item));
 }
 
-function mobileSlots(visible: NavItem[]): { bar: BarSlot[]; sheet: NavItem[] } {
-  const primary = pick(PRIMARY_IDS, visible);
-  const rest = pick(
-    MORE_IDS.filter((id) => id !== "todos"),
-    visible,
-  );
-  const todos = NAV_ITEMS.find((item) => item.id === "todos");
-  const sheet = todos ? [todos, ...rest] : rest;
-  return { bar: [...primary, "more"], sheet };
-}
-
 export function AppShell() {
   const { tab, setTab, t, menu, group } = useApp();
   const visible = NAV_ITEMS.filter((item) => isOn(item, menu));
   const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches);
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
 
   useLayoutEffect(() => {
     const mq = window.matchMedia("(min-width: 900px)");
     const sync = () => {
       setWide(mq.matches);
-      if (mq.matches) setMoreOpen(false);
+      if (mq.matches) setMenuOpen(false);
     };
     sync();
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
   }, []);
 
-  const { bar, sheet } = wide ? { bar: visible as BarSlot[], sheet: [] } : mobileSlots(visible);
-  const moreActive = sheet.some((item) => item.id === tab);
-  const listItems = sheet.filter((item) => LIST_IDS.includes(item.id));
-  const householdItems = sheet.filter((item) => HOUSEHOLD_IDS.includes(item.id));
+  const dailyItems = pick(DAILY_IDS, visible);
+  const listItems = pick(LIST_IDS, visible);
+  const householdItems = pick(HOUSEHOLD_IDS, visible);
 
   useEffect(() => {
-    if (sheet.length === 0) setMoreOpen(false);
-  }, [sheet.length]);
-
-  useEffect(() => {
-    if (!moreOpen) return;
+    if (!menuOpen) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMoreOpen(false);
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        menuBtnRef.current?.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [moreOpen]);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!menuOpen || wide) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const first = drawerRef.current?.querySelector<HTMLButtonElement>("button");
+    first?.focus();
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [menuOpen, wide]);
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    menuBtnRef.current?.focus();
+  };
 
   const go = (id: Tab) => {
     setTab(id);
-    setMoreOpen(false);
+    setMenuOpen(false);
   };
 
-  const renderTab = (item: NavItem) => {
+  const renderItem = (item: NavItem) => {
     const Icon = item.icon;
     return (
       <button key={item.id} type="button" className={tab === item.id ? "active" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => go(item.id)}>
@@ -103,60 +105,56 @@ export function AppShell() {
     );
   };
 
-  const renderMoreRow = (item: NavItem) => {
-    const Icon = item.icon;
+  const renderGroup = (label: string, items: NavItem[]) => {
+    if (!items.length) return null;
     return (
-      <button key={item.id} type="button" className={tab === item.id ? "active" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => go(item.id)}>
-        <Icon size={18} />
-        <span>{t(item.label)}</span>
-      </button>
+      <div className="more-group">
+        <p className="more-heading">{label}</p>
+        {items.map(renderItem)}
+      </div>
     );
   };
 
   return (
     <div className="shell">
-      {moreOpen ? <button type="button" className="more-backdrop" aria-label={t("moreClose")} onClick={() => setMoreOpen(false)} /> : null}
-      <nav className={`dock${moreOpen ? " more-open" : ""}`} aria-label={t("navMain")} style={{ "--dock-cols": String(Math.max(1, bar.length)) } as CSSProperties}>
-        {moreOpen && sheet.length ? (
-          <div className="more-sheet" id="more-sheet" role="dialog" aria-modal="true" aria-label={t("tabMore")}>
-            {listItems.length ? (
-              <div className="more-group">
-                <p className="more-heading">{t("moreLists")}</p>
-                {listItems.map(renderMoreRow)}
-              </div>
-            ) : null}
-            {householdItems.length ? (
-              <div className="more-group">
-                <p className="more-heading">{t("moreHousehold")}</p>
-                {householdItems.map(renderMoreRow)}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-        <div className="dock-items">
-          {bar.map((slot) => {
-            if (slot !== "more") return renderTab(slot);
-            return (
-              <button
-                key="more"
-                type="button"
-                className={moreActive || moreOpen ? "active" : ""}
-                aria-expanded={moreOpen}
-                aria-controls="more-sheet"
-                aria-haspopup="dialog"
-                onClick={() => setMoreOpen((current) => !current)}
-              >
-                <Ellipsis size={18} />
-                <span>{t("tabMore")}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      {wide ? (
+        <nav className="dock" aria-label={t("navMain")}>
+          <div className="dock-items">{visible.map(renderItem)}</div>
+        </nav>
+      ) : (
+        <>
+          {menuOpen ? <button type="button" className="menu-backdrop" aria-label={t("moreClose")} onClick={closeMenu} /> : null}
+          <nav
+            ref={drawerRef}
+            id="app-drawer"
+            className={`drawer${menuOpen ? " open" : ""}`}
+            aria-label={t("navMain")}
+            aria-hidden={!menuOpen}
+            inert={!menuOpen}
+          >
+            {renderGroup(t("moreDaily"), dailyItems)}
+            {renderGroup(t("moreLists"), listItems)}
+            {renderGroup(t("moreHousehold"), householdItems)}
+          </nav>
+        </>
+      )}
       <div className="workspace">
-        {group?.name ? (
+        {group?.name || !wide ? (
           <header className="group-banner">
-            <h1 className="group-title">{group.name}</h1>
+            {group?.name ? <h1 className="group-title">{group.name}</h1> : <span />}
+            {!wide ? (
+              <button
+                ref={menuBtnRef}
+                type="button"
+                className="menu-btn"
+                aria-label={t("tabMore")}
+                aria-expanded={menuOpen}
+                aria-controls="app-drawer"
+                onClick={() => setMenuOpen((current) => !current)}
+              >
+                <Menu size={24} strokeWidth={2.25} />
+              </button>
+            ) : null}
           </header>
         ) : null}
         {tab === "calendar" && menu.calendar ? <CalendarView /> : null}

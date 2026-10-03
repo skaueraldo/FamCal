@@ -89,6 +89,7 @@ export function TodoView() {
               value={listFolder(list.folder)}
               folders={folders}
               datalistId={`todo-folder-${list.id}`}
+              reveal
               onCommit={(next) => {
                 const updated = withFolder(list, next);
                 if (updated !== list) upsertTodoList(updated);
@@ -178,6 +179,7 @@ export function TodoView() {
               folders={folders}
               datalistId="todo-new-folder"
               resetKey={folderKey}
+              reveal
               onChange={setFolder}
             />
             <button className="btn" type="submit">

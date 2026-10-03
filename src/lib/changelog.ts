@@ -10,6 +10,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-10-01",
+    items: [
+      {
+        en: "Putting a to-do list in a folder starts from a small Add to folder button.",
+        no: "Å legge en gjøremålsliste i en mappe starter med en liten Legg i Mappe-knapp.",
+      },
+      {
+        en: "An empty today says Nothing today yet.",
+        no: "En tom dag i dag sier Ingenting i dag ennå.",
+      },
+      {
+        en: "Today is labeled under the date, and the weekday stays visible.",
+        no: "I dag er merket under datoen, og ukedagen vises som vanlig.",
+      },
+      {
+        en: "Event days start on today, grouped by week of the year, with a little extra space where the week changes.",
+        no: "Dager for hendelser starter på i dag, gruppert etter ukenummer, med litt mer luft der uken skifter.",
+      },
+      {
+        en: "The menu button on a phone is easier to see.",
+        no: "Menyknappen på telefon er lettere å se.",
+      },
+      {
+        en: "On a phone, the menu is a side drawer with an icon for each section.",
+        no: "På telefon er menyen en skuff fra siden, med ikon for hver seksjon.",
+      },
+    ],
+  },
+  {
     date: "2026-09-29",
     items: [
       {

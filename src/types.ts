@@ -17,6 +17,7 @@ export interface CalEvent {
   title: string;
   date: string;
   endDate?: string;
+  dates?: string[];
   start?: string;
   end?: string;
   notes?: string;
