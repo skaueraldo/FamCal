@@ -13,6 +13,10 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-10-11",
     items: [
       {
+        en: "On a phone, an open menu shows every section at once, grouped into Daily, Lists, and Household.",
+        no: "På telefon viser en åpen meny alle seksjonene med en gang, delt i Daglig, Lister og Husstand.",
+      },
+      {
         en: "On a phone, the menu is Calendar, Shopping, Dinner, and Menu again, and that bar can be hidden or shown.",
         no: "På telefon er menyen igjen Kalender, Handleliste, Middag og Meny, og den linjen kan skjules eller vises.",
       },

@@ -371,7 +371,7 @@ label.btn {
 .shell {
   width: min(1160px, calc(100% - 28px));
   margin: 0 auto;
-  padding: 20px 0 calc(108px + var(--safe-bottom));
+  padding: 20px 0 calc(var(--dock-offset, 108px) + 16px + var(--safe-bottom));
 }
 
 .shell.dock-collapsed {
@@ -866,9 +866,9 @@ label.btn {
 
 .more-sheet {
   display: grid;
-  gap: 10px;
-  padding: 6px 4px 10px;
-  max-height: min(52vh, 420px);
+  gap: 14px;
+  padding: 4px 4px 8px;
+  max-height: min(68vh, 560px);
   overflow: auto;
 }
 
@@ -933,13 +933,13 @@ label.btn {
   color: var(--dock-text);
   border-radius: 14px;
   min-height: 44px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   display: grid;
   grid-template-columns: 22px 1fr;
   align-items: center;
   justify-items: start;
   gap: 10px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
 }
 

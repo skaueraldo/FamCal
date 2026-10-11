@@ -1,5 +1,5 @@
-import { CalendarDays, ChevronDown, ChevronUp, Ellipsis, Gift, ListTodo, Settings, ShoppingBasket, Soup, Users, Wallet, type LucideIcon } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { CalendarDays, ChevronDown, ChevronUp, Gift, ListTodo, Settings, ShoppingBasket, Soup, Users, Wallet, type LucideIcon } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useApp } from "../state/AppState";
 import type { Tab } from "../types";
 import { CalendarView } from "./CalendarView";
@@ -26,13 +26,10 @@ const NAV_ITEMS: NavItem[] = [
   { id: "settings", icon: Settings, label: "tabSettings" },
 ];
 
-const PRIMARY_IDS: Tab[] = ["calendar", "shopping", "dinner"];
+const DAILY_IDS: Tab[] = ["calendar", "dinner", "shopping"];
 const LIST_IDS: Tab[] = ["todos", "spendings", "wishlist"];
 const HOUSEHOLD_IDS: Tab[] = ["group", "settings"];
-const MORE_IDS: Tab[] = [...LIST_IDS, ...HOUSEHOLD_IDS];
 const DOCK_KEY = "famcal.dock-open";
-
-type BarSlot = NavItem | "more";
 
 function isOn(item: NavItem, menu: Record<Exclude<Tab, "settings">, boolean>) {
   return item.id === "settings" || item.id === "todos" || menu[item.id];
@@ -41,17 +38,6 @@ function isOn(item: NavItem, menu: Record<Exclude<Tab, "settings">, boolean>) {
 function pick(ids: Tab[], visible: NavItem[]) {
   const byId = new Map(visible.map((item) => [item.id, item]));
   return ids.map((id) => byId.get(id)).filter((item): item is NavItem => Boolean(item));
-}
-
-function mobileSlots(visible: NavItem[]): { bar: BarSlot[]; sheet: NavItem[] } {
-  const primary = pick(PRIMARY_IDS, visible);
-  const rest = pick(
-    MORE_IDS.filter((id) => id !== "todos"),
-    visible,
-  );
-  const todos = NAV_ITEMS.find((item) => item.id === "todos");
-  const sheet = todos ? [todos, ...rest] : rest;
-  return { bar: [...primary, "more"], sheet };
 }
 
 function readDockOpen() {
@@ -66,43 +52,51 @@ export function AppShell() {
   const { tab, setTab, t, menu, group } = useApp();
   const visible = NAV_ITEMS.filter((item) => isOn(item, menu));
   const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches);
-  const [moreOpen, setMoreOpen] = useState(false);
   const [dockOpen, setDockOpen] = useState(readDockOpen);
   const collapseRef = useRef<HTMLButtonElement>(null);
   const expandRef = useRef<HTMLButtonElement>(null);
+  const dockRef = useRef<HTMLElement>(null);
   const dockToggleReady = useRef(false);
   const wideRef = useRef(wide);
   wideRef.current = wide;
 
   useLayoutEffect(() => {
     const mq = window.matchMedia("(min-width: 900px)");
-    const sync = () => {
-      setWide(mq.matches);
-      if (mq.matches) setMoreOpen(false);
-    };
+    const sync = () => setWide(mq.matches);
     sync();
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
   }, []);
 
-  const { bar, sheet } = wide ? { bar: visible as BarSlot[], sheet: [] } : mobileSlots(visible);
-  const moreActive = sheet.some((item) => item.id === tab);
-  const listItems = sheet.filter((item) => LIST_IDS.includes(item.id));
-  const householdItems = sheet.filter((item) => HOUSEHOLD_IDS.includes(item.id));
+  const dailyItems = pick(DAILY_IDS, visible);
+  const listItems = pick(LIST_IDS, visible);
+  const householdItems = pick(HOUSEHOLD_IDS, visible);
+  const groups = [
+    { label: "moreDaily" as const, items: dailyItems },
+    { label: "moreLists" as const, items: listItems },
+    { label: "moreHousehold" as const, items: householdItems },
+  ];
   const dockCollapsed = !wide && !dockOpen;
+  const visibleKey = visible.map((item) => item.id).join();
 
-  useEffect(() => {
-    if (sheet.length === 0) setMoreOpen(false);
-  }, [sheet.length]);
-
-  useEffect(() => {
-    if (!moreOpen) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMoreOpen(false);
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const dock = dockRef.current;
+    if (!dock || wide || !dockOpen) {
+      root.style.removeProperty("--dock-offset");
+      return;
+    }
+    const apply = () => {
+      root.style.setProperty("--dock-offset", `${Math.ceil(dock.getBoundingClientRect().height)}px`);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [moreOpen]);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(dock);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--dock-offset");
+    };
+  }, [wide, dockOpen, visibleKey]);
 
   useEffect(() => {
     if (!dockToggleReady.current) {
@@ -116,7 +110,6 @@ export function AppShell() {
 
   const go = (id: Tab) => {
     setTab(id);
-    setMoreOpen(false);
   };
 
   const toggleDock = () => {
@@ -127,22 +120,11 @@ export function AppShell() {
       } catch {
         /* ignore */
       }
-      if (!next) setMoreOpen(false);
       return next;
     });
   };
 
-  const renderTab = (item: NavItem) => {
-    const Icon = item.icon;
-    return (
-      <button key={item.id} type="button" className={tab === item.id ? "active" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => go(item.id)}>
-        <Icon size={18} />
-        <span>{t(item.label)}</span>
-      </button>
-    );
-  };
-
-  const renderMoreRow = (item: NavItem) => {
+  const renderItem = (item: NavItem) => {
     const Icon = item.icon;
     return (
       <button key={item.id} type="button" className={tab === item.id ? "active" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => go(item.id)}>
@@ -154,7 +136,6 @@ export function AppShell() {
 
   return (
     <div className={`shell${dockCollapsed ? " dock-collapsed" : ""}`}>
-      {moreOpen ? <button type="button" className="more-backdrop" aria-label={t("moreClose")} onClick={() => setMoreOpen(false)} /> : null}
       {dockCollapsed ? (
         <button ref={expandRef} type="button" className="dock-expand" aria-expanded={false} aria-controls="app-dock" onClick={toggleDock}>
           <ChevronUp size={18} />
@@ -162,12 +143,12 @@ export function AppShell() {
         </button>
       ) : null}
       <nav
+        ref={dockRef}
         id="app-dock"
-        className={`dock${moreOpen ? " more-open" : ""}${dockCollapsed ? " collapsed" : ""}`}
+        className={`dock${dockCollapsed ? " collapsed" : ""}`}
         aria-label={t("navMain")}
         aria-hidden={dockCollapsed}
         inert={dockCollapsed}
-        style={{ "--dock-cols": String(Math.max(1, bar.length)) } as CSSProperties}
       >
         {!wide ? (
           <button ref={collapseRef} type="button" className="dock-collapse" aria-expanded={true} aria-controls="app-dock" onClick={toggleDock}>
@@ -175,41 +156,20 @@ export function AppShell() {
             <span>{t("collapseMenu")}</span>
           </button>
         ) : null}
-        {moreOpen && sheet.length ? (
-          <div className="more-sheet" id="more-sheet" role="dialog" aria-modal="true" aria-label={t("tabMore")}>
-            {listItems.length ? (
-              <div className="more-group">
-                <p className="more-heading">{t("moreLists")}</p>
-                {listItems.map(renderMoreRow)}
-              </div>
-            ) : null}
-            {householdItems.length ? (
-              <div className="more-group">
-                <p className="more-heading">{t("moreHousehold")}</p>
-                {householdItems.map(renderMoreRow)}
-              </div>
-            ) : null}
+        {!wide ? (
+          <div className="more-sheet">
+            {groups.map((section) =>
+              section.items.length ? (
+                <div key={section.label} className="more-group">
+                  <p className="more-heading">{t(section.label)}</p>
+                  {section.items.map(renderItem)}
+                </div>
+              ) : null,
+            )}
           </div>
-        ) : null}
-        <div className="dock-items">
-          {bar.map((slot) => {
-            if (slot !== "more") return renderTab(slot);
-            return (
-              <button
-                key="more"
-                type="button"
-                className={moreActive || moreOpen ? "active" : ""}
-                aria-expanded={moreOpen}
-                aria-controls="more-sheet"
-                aria-haspopup="dialog"
-                onClick={() => setMoreOpen((current) => !current)}
-              >
-                <Ellipsis size={18} />
-                <span>{t("tabMore")}</span>
-              </button>
-            );
-          })}
-        </div>
+        ) : (
+          <div className="dock-items">{visible.map(renderItem)}</div>
+        )}
       </nav>
       <div className="workspace">
         {group?.name ? (
