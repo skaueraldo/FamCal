@@ -16,6 +16,8 @@ const en = {
   moreLists: "Lists",
   moreHousehold: "Household",
   moreClose: "Close menu",
+  collapseMenu: "Hide menu",
+  expandMenu: "Show menu",
 
   welcomeTitle: "A shared month, and the shopping list beside it.",
   welcomeLede:
@@ -333,6 +335,8 @@ const no: Record<MessageKey, string> = {
   moreLists: "Lister",
   moreHousehold: "Husstand",
   moreClose: "Lukk menyen",
+  collapseMenu: "Skjul menyen",
+  expandMenu: "Vis menyen",
 
   welcomeTitle: "En felles måned, og handlelisten ved siden av.",
   welcomeLede:

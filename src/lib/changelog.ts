@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-10-11",
+    items: [
+      {
+        en: "On a phone, the menu is Calendar, Shopping, Dinner, and Menu again, and that bar can be hidden or shown.",
+        no: "På telefon er menyen igjen Kalender, Handleliste, Middag og Meny, og den linjen kan skjules eller vises.",
+      },
+    ],
+  },
+  {
     date: "2026-10-01",
     items: [
       {

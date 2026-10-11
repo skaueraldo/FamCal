@@ -120,7 +120,9 @@ a,
 .shop-item,
 .event-row,
 .dock-items button,
-.drawer button {
+.more-sheet button,
+.dock-collapse,
+.dock-expand {
   transition:
     background-color 0.16s ease,
     color 0.16s ease,
@@ -369,7 +371,11 @@ label.btn {
 .shell {
   width: min(1160px, calc(100% - 28px));
   margin: 0 auto;
-  padding: 20px 0 calc(28px + var(--safe-bottom));
+  padding: 20px 0 calc(108px + var(--safe-bottom));
+}
+
+.shell.dock-collapsed {
+  padding-bottom: calc(72px + var(--safe-bottom));
 }
 
 .topbar {
@@ -385,16 +391,10 @@ label.btn {
 }
 
 .group-banner {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
   margin: 2px 0 14px;
 }
 
 .group-title {
-  flex: 1;
-  min-width: 0;
   font-size: clamp(34px, 6.4vw, 56px);
   font-weight: 500;
   letter-spacing: -0.045em;
@@ -790,7 +790,12 @@ label.btn {
 }
 
 .dock {
-  display: none;
+  position: fixed;
+  left: 50%;
+  bottom: calc(10px + var(--safe-bottom));
+  transform: translateX(-50%);
+  width: min(720px, calc(100% - 16px));
+  display: flex;
   flex-direction: column;
   gap: 0;
   padding: 5px;
@@ -798,64 +803,73 @@ label.btn {
   color: var(--dock-text);
   border: 1px solid var(--dock-border);
   border-radius: 22px;
+  backdrop-filter: blur(22px) saturate(1.35);
+  -webkit-backdrop-filter: blur(22px) saturate(1.35);
+  box-shadow: var(--shadow);
   z-index: 20;
+  transition: transform 0.22s ease;
 }
 
-.menu-btn {
-  flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  margin-top: 2px;
+.dock.collapsed {
+  transform: translateX(-50%) translateY(calc(100% + 28px));
+  pointer-events: none;
+}
+
+.dock-collapse,
+.dock-expand {
   border: 0;
-  background: var(--ink);
-  color: var(--sheet);
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 650;
 }
 
-.menu-btn[aria-expanded="true"] {
-  outline: 2px solid var(--ink);
-  outline-offset: 3px;
+.dock-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 32px;
+  margin: 0 4px 2px;
+  border-radius: 12px;
 }
 
-.menu-backdrop {
+.dock-expand {
+  position: fixed;
+  left: 50%;
+  bottom: calc(10px + var(--safe-bottom));
+  transform: translateX(-50%);
+  z-index: 21;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--dock-border);
+  border-radius: 999px;
+  background: var(--dock-bg);
+  backdrop-filter: blur(22px) saturate(1.35);
+  -webkit-backdrop-filter: blur(22px) saturate(1.35);
+  box-shadow: var(--shadow);
+}
+
+.more-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: 19;
   border: 0;
   margin: 0;
   padding: 0;
   background: color-mix(in srgb, var(--ink) 22%, transparent);
 }
 
-.drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 31;
-  width: min(320px, 86vw);
+.more-sheet {
   display: grid;
-  align-content: start;
-  gap: 16px;
-  padding: max(18px, env(safe-area-inset-top, 0px)) 14px max(18px, env(safe-area-inset-bottom, 0px));
-  background: var(--sheet);
-  color: var(--dock-text);
-  border-left: 1px solid var(--line);
+  gap: 10px;
+  padding: 6px 4px 10px;
+  max-height: min(52vh, 420px);
   overflow: auto;
-  transform: translateX(100%);
-  visibility: hidden;
-  pointer-events: none;
-  transition:
-    transform 0.22s ease,
-    visibility 0.22s ease;
-}
-
-.drawer.open {
-  transform: translateX(0);
-  visibility: visible;
-  pointer-events: auto;
 }
 
 .dock-items {
@@ -893,9 +907,10 @@ label.btn {
 }
 
 .dock-items button.active,
-.drawer button.active {
+.more-sheet button.active {
   background: var(--dock-active);
   color: var(--dock-active-ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .more-group {
@@ -912,7 +927,7 @@ label.btn {
   color: var(--ink-soft);
 }
 
-.drawer button {
+.more-sheet button {
   border: 0;
   background: transparent;
   color: var(--dock-text);
@@ -924,7 +939,7 @@ label.btn {
   align-items: center;
   justify-items: start;
   gap: 10px;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -2048,14 +2063,14 @@ label.btn {
   }
 
   .dock-items button:hover:not(.active),
-  .drawer button:hover:not(.active) {
+  .more-sheet button:hover:not(.active),
+  .dock-collapse:hover {
     background: color-mix(in srgb, var(--ink) 6%, transparent);
     color: var(--ink);
   }
 
-  .menu-btn:hover {
-    background: color-mix(in srgb, var(--ink) 82%, var(--sheet));
-    color: var(--sheet);
+  .dock-expand:hover {
+    border-color: color-mix(in srgb, var(--ink) 18%, var(--line));
   }
 }
 
@@ -2069,15 +2084,17 @@ label.btn {
   .shop-item,
   .event-row,
   .dock-items button,
-  .drawer,
-  .drawer button,
-  .menu-btn {
+  .more-sheet button,
+  .dock,
+  .dock-collapse,
+  .dock-expand {
     transition: none;
   }
 }
 
 @media (min-width: 900px) {
-  .shell {
+  .shell,
+  .shell.dock-collapsed {
     padding-bottom: 40px;
     display: grid;
     grid-template-columns: 212px 1fr;
@@ -2091,19 +2108,22 @@ label.btn {
     grid-column: 2;
   }
 
-  .dock {
+  .dock,
+  .dock.collapsed {
     display: flex;
     position: sticky;
     top: 24px;
     left: auto;
     bottom: auto;
     transform: none;
+    pointer-events: auto;
     width: 212px;
     grid-row: 1;
     height: fit-content;
     padding: 8px;
     border-radius: 22px;
     background: var(--dock-bg);
+    transition: none;
   }
 
   .dock-items {
@@ -2111,9 +2131,10 @@ label.btn {
     width: 100%;
   }
 
-  .menu-btn,
-  .menu-backdrop,
-  .drawer {
+  .dock-collapse,
+  .dock-expand,
+  .more-backdrop,
+  .more-sheet {
     display: none;
   }
 
