@@ -16,6 +16,8 @@ const en = {
   moreLists: "Lists",
   moreHousehold: "Household",
   moreClose: "Close menu",
+  collapseMenu: "Hide menu",
+  expandMenu: "Show menu",
 
   welcomeTitle: "A shared month, and the shopping list beside it.",
   welcomeLede:
@@ -74,6 +76,7 @@ const en = {
   note: "Note",
   optional: "Optional",
   addEvent: "Add event",
+  hideAddEvent: "Hide add event",
   editEvent: "Edit",
   editEventTitle: "Edit event",
   saveEvent: "Save changes",
@@ -333,6 +336,8 @@ const no: Record<MessageKey, string> = {
   moreLists: "Lister",
   moreHousehold: "Husstand",
   moreClose: "Lukk menyen",
+  collapseMenu: "Skjul menyen",
+  expandMenu: "Vis menyen",
 
   welcomeTitle: "En felles måned, og handlelisten ved siden av.",
   welcomeLede:
@@ -391,6 +396,7 @@ const no: Record<MessageKey, string> = {
   note: "Notat",
   optional: "Valgfritt",
   addEvent: "Legg til hendelse",
+  hideAddEvent: "Skjul ny hendelse",
   editEvent: "Rediger",
   editEventTitle: "Rediger hendelse",
   saveEvent: "Lagre endringer",

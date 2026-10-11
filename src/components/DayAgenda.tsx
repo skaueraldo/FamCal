@@ -1,4 +1,5 @@
-import { useRef, useState, type FormEvent } from "react";
+import { ChevronUp, Plus } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { eventDates, formatOccurrenceWhen, memberColorOf, occurrencesOnDay, uniqueDates } from "../lib/events";
 import { uid } from "../lib/id";
 import type { CalEvent, RepeatRule } from "../types";
@@ -21,7 +22,9 @@ const emptyForm = (iso: string, memberId = "") => ({
 export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boolean }) {
   const { group, session, upsertEvent, deleteEvent, language, t } = useApp();
   const formRef = useRef<HTMLFormElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [composeOpen, setComposeOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [days, setDays] = useState<string[]>([iso]);
   const [start, setStart] = useState("");
@@ -52,6 +55,7 @@ export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boo
 
   const resetForm = () => {
     setEditingId(null);
+    setComposeOpen(false);
     applyForm(emptyForm(iso, session?.profile.id ?? ""));
   };
 
@@ -67,8 +71,16 @@ export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boo
       notes: event.notes ?? "",
       memberId: event.memberId,
     });
-    requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+    setComposeOpen(true);
   };
+
+  const openCompose = () => setComposeOpen(true);
+
+  useEffect(() => {
+    if (!composeOpen) return;
+    if (editingId) formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    else titleRef.current?.focus();
+  }, [composeOpen, editingId]);
 
   const save = (event: FormEvent) => {
     event.preventDefault();
@@ -151,11 +163,22 @@ export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boo
         )}
       </div>
 
-      <form ref={formRef} className={`card day-compose${editingId ? " editing" : ""}`} onSubmit={save}>
+      <button
+        type="button"
+        className={`btn compose-toggle${composeOpen ? " secondary" : ""}`}
+        aria-expanded={composeOpen}
+        aria-controls="day-compose"
+        onClick={() => (composeOpen ? resetForm() : openCompose())}
+      >
+        {composeOpen ? <ChevronUp size={18} /> : <Plus size={18} />}
+        {composeOpen ? (editingId ? t("cancelEdit") : t("hideAddEvent")) : t("addEvent")}
+      </button>
+      {composeOpen ? (
+      <form id="day-compose" ref={formRef} className={`card day-compose${editingId ? " editing" : ""}`} onSubmit={save}>
         <h2>{editingId ? t("editEventTitle") : t("addToSharedCalendar")}</h2>
         <label className="field">
           <span>{t("eventTitle")}</span>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("eventPlaceholder")} />
+          <input ref={titleRef} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("eventPlaceholder")} />
         </label>
         <EventDayPicker selected={days} onChange={setDays} />
         <div className="when-grid">
@@ -210,6 +233,7 @@ export function DayAgenda({ iso, isToday = false }: { iso: string; isToday?: boo
           ) : null}
         </div>
       </form>
+      ) : null}
     </div>
   );
 }

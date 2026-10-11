@@ -10,6 +10,31 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-10-11",
+    items: [
+      {
+        en: "On a phone, choosing a section closes the menu so that section is visible.",
+        no: "På telefon lukkes menyen når du velger en seksjon, så den seksjonen vises.",
+      },
+      {
+        en: "On Day and Tomorrow, adding an event stays closed until you tap Add event.",
+        no: "På Dag og I morgen er det å legge til en hendelse lukket til du trykker Legg til hendelse.",
+      },
+      {
+        en: "The menu has a green background so it stands apart from the page.",
+        no: "Menyen har en grønn bakgrunn så den skiller seg fra siden.",
+      },
+      {
+        en: "On a phone, an open menu shows every section at once, grouped into Daily, Lists, and Household.",
+        no: "På telefon viser en åpen meny alle seksjonene med en gang, delt i Daglig, Lister og Husstand.",
+      },
+      {
+        en: "On a phone, the menu is Calendar, Shopping, Dinner, and Menu again, and that bar can be hidden or shown.",
+        no: "På telefon er menyen igjen Kalender, Handleliste, Middag og Meny, og den linjen kan skjules eller vises.",
+      },
+    ],
+  },
+  {
     date: "2026-10-01",
     items: [
       {

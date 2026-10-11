@@ -1,4 +1,4 @@
-import { CalendarDays, Gift, ListTodo, Menu, Settings, ShoppingBasket, Soup, Users, Wallet, type LucideIcon } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronUp, Gift, ListTodo, Settings, ShoppingBasket, Soup, Users, Wallet, type LucideIcon } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useApp } from "../state/AppState";
 import type { Tab } from "../types";
@@ -26,9 +26,10 @@ const NAV_ITEMS: NavItem[] = [
   { id: "settings", icon: Settings, label: "tabSettings" },
 ];
 
-const DAILY_IDS: Tab[] = ["calendar", "shopping", "dinner"];
+const DAILY_IDS: Tab[] = ["calendar", "dinner", "shopping"];
 const LIST_IDS: Tab[] = ["todos", "spendings", "wishlist"];
 const HOUSEHOLD_IDS: Tab[] = ["group", "settings"];
+const DOCK_KEY = "famcal.dock-open";
 
 function isOn(item: NavItem, menu: Record<Exclude<Tab, "settings">, boolean>) {
   return item.id === "settings" || item.id === "todos" || menu[item.id];
@@ -39,20 +40,29 @@ function pick(ids: Tab[], visible: NavItem[]) {
   return ids.map((id) => byId.get(id)).filter((item): item is NavItem => Boolean(item));
 }
 
+function readDockOpen() {
+  try {
+    return localStorage.getItem(DOCK_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
 export function AppShell() {
   const { tab, setTab, t, menu, group } = useApp();
   const visible = NAV_ITEMS.filter((item) => isOn(item, menu));
   const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuBtnRef = useRef<HTMLButtonElement>(null);
-  const drawerRef = useRef<HTMLElement>(null);
+  const [dockOpen, setDockOpen] = useState(readDockOpen);
+  const collapseRef = useRef<HTMLButtonElement>(null);
+  const expandRef = useRef<HTMLButtonElement>(null);
+  const dockRef = useRef<HTMLElement>(null);
+  const dockToggleReady = useRef(false);
+  const wideRef = useRef(wide);
+  wideRef.current = wide;
 
   useLayoutEffect(() => {
     const mq = window.matchMedia("(min-width: 900px)");
-    const sync = () => {
-      setWide(mq.matches);
-      if (mq.matches) setMenuOpen(false);
-    };
+    const sync = () => setWide(mq.matches);
     sync();
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
@@ -61,38 +71,64 @@ export function AppShell() {
   const dailyItems = pick(DAILY_IDS, visible);
   const listItems = pick(LIST_IDS, visible);
   const householdItems = pick(HOUSEHOLD_IDS, visible);
+  const groups = [
+    { label: "moreDaily" as const, items: dailyItems },
+    { label: "moreLists" as const, items: listItems },
+    { label: "moreHousehold" as const, items: householdItems },
+  ];
+  const dockCollapsed = !wide && !dockOpen;
+  const visibleKey = visible.map((item) => item.id).join();
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-        menuBtnRef.current?.focus();
-      }
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const dock = dockRef.current;
+    if (!dock || wide || !dockOpen) {
+      root.style.removeProperty("--dock-offset");
+      return;
+    }
+    const apply = () => {
+      root.style.setProperty("--dock-offset", `${Math.ceil(dock.getBoundingClientRect().height)}px`);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [menuOpen]);
-
-  useEffect(() => {
-    if (!menuOpen || wide) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const first = drawerRef.current?.querySelector<HTMLButtonElement>("button");
-    first?.focus();
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(dock);
     return () => {
-      document.body.style.overflow = previous;
+      observer.disconnect();
+      root.style.removeProperty("--dock-offset");
     };
-  }, [menuOpen, wide]);
+  }, [wide, dockOpen, visibleKey]);
 
-  const closeMenu = () => {
-    setMenuOpen(false);
-    menuBtnRef.current?.focus();
-  };
+  useEffect(() => {
+    if (!dockToggleReady.current) {
+      dockToggleReady.current = true;
+      return;
+    }
+    if (wideRef.current) return;
+    const target = dockOpen ? collapseRef.current : expandRef.current;
+    target?.focus();
+  }, [dockOpen]);
 
   const go = (id: Tab) => {
     setTab(id);
-    setMenuOpen(false);
+    if (wideRef.current) return;
+    setDockOpen(false);
+    try {
+      localStorage.setItem(DOCK_KEY, "0");
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const toggleDock = () => {
+    setDockOpen((current) => {
+      const next = !current;
+      try {
+        localStorage.setItem(DOCK_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
   };
 
   const renderItem = (item: NavItem) => {
@@ -105,56 +141,47 @@ export function AppShell() {
     );
   };
 
-  const renderGroup = (label: string, items: NavItem[]) => {
-    if (!items.length) return null;
-    return (
-      <div className="more-group">
-        <p className="more-heading">{label}</p>
-        {items.map(renderItem)}
-      </div>
-    );
-  };
-
   return (
-    <div className="shell">
-      {wide ? (
-        <nav className="dock" aria-label={t("navMain")}>
+    <div className={`shell${dockCollapsed ? " dock-collapsed" : ""}`}>
+      {dockCollapsed ? (
+        <button ref={expandRef} type="button" className="dock-expand" aria-expanded={false} aria-controls="app-dock" onClick={toggleDock}>
+          <ChevronUp size={18} />
+          <span>{t("expandMenu")}</span>
+        </button>
+      ) : null}
+      <nav
+        ref={dockRef}
+        id="app-dock"
+        className={`dock${dockCollapsed ? " collapsed" : ""}`}
+        aria-label={t("navMain")}
+        aria-hidden={dockCollapsed}
+        inert={dockCollapsed}
+      >
+        {!wide ? (
+          <button ref={collapseRef} type="button" className="dock-collapse" aria-expanded={true} aria-controls="app-dock" onClick={toggleDock}>
+            <ChevronDown size={18} />
+            <span>{t("collapseMenu")}</span>
+          </button>
+        ) : null}
+        {!wide ? (
+          <div className="more-sheet">
+            {groups.map((section) =>
+              section.items.length ? (
+                <div key={section.label} className="more-group">
+                  <p className="more-heading">{t(section.label)}</p>
+                  {section.items.map(renderItem)}
+                </div>
+              ) : null,
+            )}
+          </div>
+        ) : (
           <div className="dock-items">{visible.map(renderItem)}</div>
-        </nav>
-      ) : (
-        <>
-          {menuOpen ? <button type="button" className="menu-backdrop" aria-label={t("moreClose")} onClick={closeMenu} /> : null}
-          <nav
-            ref={drawerRef}
-            id="app-drawer"
-            className={`drawer${menuOpen ? " open" : ""}`}
-            aria-label={t("navMain")}
-            aria-hidden={!menuOpen}
-            inert={!menuOpen}
-          >
-            {renderGroup(t("moreDaily"), dailyItems)}
-            {renderGroup(t("moreLists"), listItems)}
-            {renderGroup(t("moreHousehold"), householdItems)}
-          </nav>
-        </>
-      )}
+        )}
+      </nav>
       <div className="workspace">
-        {group?.name || !wide ? (
+        {group?.name ? (
           <header className="group-banner">
-            {group?.name ? <h1 className="group-title">{group.name}</h1> : <span />}
-            {!wide ? (
-              <button
-                ref={menuBtnRef}
-                type="button"
-                className="menu-btn"
-                aria-label={t("tabMore")}
-                aria-expanded={menuOpen}
-                aria-controls="app-drawer"
-                onClick={() => setMenuOpen((current) => !current)}
-              >
-                <Menu size={24} strokeWidth={2.25} />
-              </button>
-            ) : null}
+            <h1 className="group-title">{group.name}</h1>
           </header>
         ) : null}
         {tab === "calendar" && menu.calendar ? <CalendarView /> : null}
