@@ -110,6 +110,13 @@ export function AppShell() {
 
   const go = (id: Tab) => {
     setTab(id);
+    if (wideRef.current) return;
+    setDockOpen(false);
+    try {
+      localStorage.setItem(DOCK_KEY, "0");
+    } catch {
+      /* ignore */
+    }
   };
 
   const toggleDock = () => {

@@ -13,6 +13,10 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-10-11",
     items: [
       {
+        en: "On a phone, choosing a section closes the menu so that section is visible.",
+        no: "På telefon lukkes menyen når du velger en seksjon, så den seksjonen vises.",
+      },
+      {
         en: "On Day and Tomorrow, adding an event stays closed until you tap Add event.",
         no: "På Dag og I morgen er det å legge til en hendelse lukket til du trykker Legg til hendelse.",
       },
