@@ -18,8 +18,8 @@
   --today-surface: #eef3f8;
   --danger-bg: #f6e8e8;
   --danger-ink: #8a3a3a;
-  --dock-bg: rgba(255, 255, 255, 0.86);
-  --dock-border: rgba(17, 17, 17, 0.06);
+  --dock-bg: #cfe3d6;
+  --dock-border: #9fbfab;
   --dock-text: #6b6b6b;
   --dock-active: #111111;
   --dock-active-ink: #ffffff;
@@ -59,9 +59,9 @@
   --today-surface: #1c232b;
   --danger-bg: #3a2222;
   --danger-ink: #f0b8b8;
-  --dock-bg: rgba(22, 22, 22, 0.88);
-  --dock-border: rgba(255, 255, 255, 0.06);
-  --dock-text: #a3a3a3;
+  --dock-bg: #1b3326;
+  --dock-border: #3e6b52;
+  --dock-text: #d7ebdf;
   --dock-active: #f4f4f4;
   --dock-active-ink: #111111;
   --mark: #f4f4f4;
@@ -562,6 +562,10 @@ label.btn {
 .day-events .empty {
   padding: 4px 0 2px;
   text-align: left;
+}
+
+.compose-toggle {
+  justify-self: start;
 }
 
 .day-compose {
