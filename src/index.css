@@ -292,7 +292,10 @@ a,
 .composer input,
 .composer select,
 .spend-composer input,
-.spend-composer select {
+.spend-composer select,
+.favorite-form input,
+.favorite-form select,
+.place-dish {
   width: 100%;
   border: 1px solid var(--line);
   background: var(--input);
@@ -308,7 +311,10 @@ a,
 .composer input:focus,
 .composer select:focus,
 .spend-composer input:focus,
-.spend-composer select:focus {
+.spend-composer select:focus,
+.favorite-form input:focus,
+.favorite-form select:focus,
+.place-dish:focus {
   outline: 2px solid var(--ring);
   outline-offset: 1px;
   border-color: var(--copper);
@@ -1130,6 +1136,190 @@ label.btn {
 .shop-actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.price-check {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+  width: 100%;
+}
+
+.price-check > summary {
+  align-self: stretch;
+}
+
+.price-check.collapse-section > summary h2 {
+  font-size: 15px;
+}
+
+.price-check > .collapse-section-body {
+  width: 100%;
+  justify-items: start;
+}
+
+.price-check-note {
+  margin: 0;
+}
+
+.price-result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.price-summary {
+  margin: 0;
+  font-weight: 650;
+}
+
+.price-chains {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.price-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--muted-surface);
+}
+
+.price-chain.best {
+  background: var(--today-surface);
+  border-color: var(--copper);
+}
+
+.price-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.price-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.price-item select {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--input);
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.price-offers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.price-pill {
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.price-pill.low {
+  background: var(--today-surface);
+  border-color: var(--copper);
+}
+
+.price-pill.missing {
+  color: var(--ink-soft);
+}
+
+.price-source {
+  margin: 0;
+}
+
+.price-source a {
+  color: inherit;
+}
+
+.border-shops {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.border-shops h3,
+.border-shops .meta {
+  margin: 0;
+}
+
+.border-shops h3 {
+  font-size: 15px;
+}
+
+.border-shops .price-pill {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.border-shops .price-pill a {
+  color: inherit;
+  font-weight: 650;
+}
+
+.shop-archives {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.shop-archives h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.shop-copy-note {
+  margin: 0;
+}
+
+.shop-archive {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--muted-surface);
+}
+
+.shop-archive-items {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .shop-suggest {
@@ -1162,6 +1352,24 @@ label.btn {
   border-radius: 14px;
   border: 1px solid var(--line);
   background: var(--muted-surface);
+}
+
+.shop-item.draggable {
+  grid-template-columns: 22px 28px 1fr auto;
+}
+
+.shop-item.dragging {
+  opacity: 0.45;
+}
+
+.shop-drag {
+  touch-action: none;
+  cursor: grab;
+  color: var(--ink-soft);
+}
+
+.shop-drag:active {
+  cursor: grabbing;
 }
 
 .shop-item.done .name {
@@ -1307,6 +1515,215 @@ label.btn {
   border-radius: 12px;
   padding: 11px 13px;
   color: var(--ink);
+}
+
+.dinner-week-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.menu-suggest .lede {
+  margin-bottom: 0;
+}
+
+.collapse-section > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.collapse-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapse-section > summary h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.collapse-section > summary h2::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  margin-top: -3px;
+  flex: none;
+}
+
+.collapse-section[open] > summary h2 {
+  margin-bottom: 6px;
+}
+
+.collapse-section[open] > summary h2::before {
+  transform: rotate(45deg);
+  margin-top: 2px;
+}
+
+.collapse-section:not([open]) > .collapse-section-body {
+  display: none;
+}
+
+.collapse-section-body {
+  display: grid;
+  gap: 12px;
+}
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.menu-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--muted-surface);
+}
+
+.menu-card h3 {
+  font-size: 16px;
+  margin-bottom: 2px;
+}
+
+.menu-meals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.menu-meals li {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.menu-meals span {
+  color: var(--ink-soft);
+  text-transform: capitalize;
+}
+
+.menu-meals strong {
+  font-weight: 600;
+}
+
+.menu-meal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.place-dish {
+  width: auto;
+  min-width: 148px;
+  padding: 7px 8px;
+  font-size: 13px;
+}
+
+.favorites-card {
+  grid-column: 1 / -1;
+}
+
+.favorite-form {
+  display: grid;
+  gap: 8px;
+}
+
+.favorite-ingredient {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(90px, 0.7fr) minmax(120px, 0.9fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.favorite-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.favorite-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.menu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.shop-category {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--muted-surface) 82%, var(--sheet));
+}
+
+.shop-category h3 {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0 2px 2px;
+}
+
+.shop-category .shop-item {
+  background: var(--sheet);
+}
+
+.shop-category.drop-target {
+  border-color: var(--copper);
+  box-shadow: inset 0 0 0 2px var(--copper);
+}
+
+.shop-category.empty-drop {
+  min-height: 64px;
+}
+
+.shop-category-select {
+  width: auto;
+  max-width: 100%;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  background: var(--input);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.shop-category-select:focus {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+  border-color: var(--copper);
 }
 
 .wishlist-head {
@@ -1990,8 +2407,22 @@ label.btn {
     grid-column: 1 / -1;
   }
 
-  .dinner-weeks {
+  .dinner-weeks,
+  .menu-grid {
     grid-template-columns: 1fr;
+  }
+
+  .menu-meals li,
+  .favorite-ingredient {
+    grid-template-columns: 1fr;
+  }
+
+  .menu-meal-actions {
+    justify-content: flex-start;
+  }
+
+  .place-dish {
+    width: 100%;
   }
 
   .dinner-row {
@@ -2056,6 +2487,15 @@ label.btn {
   .menu-btn:hover {
     background: color-mix(in srgb, var(--ink) 82%, var(--sheet));
     color: var(--sheet);
+  }
+
+  .shop-archive {
+    grid-template-columns: 1fr auto;
+  }
+
+  .shop-archive .btn {
+    grid-column: 1 / -1;
+    justify-self: start;
   }
 }
 

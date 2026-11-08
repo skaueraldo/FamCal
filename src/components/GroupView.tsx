@@ -34,6 +34,9 @@ export function GroupView() {
     localizeError,
   } = useApp();
   const [groupName, setGroupName] = useState(group?.name ?? "");
+  useEffect(() => {
+    setGroupName(group?.name ?? "");
+  }, [group?.code, group?.name]);
   const [adding, setAdding] = useState(false);
   const [url, setUrl] = useState("");
   const [spondEmail, setSpondEmail] = useState("");

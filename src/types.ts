@@ -46,6 +46,14 @@ export interface ShopHistoryEntry {
   uses: number;
 }
 
+export interface ShopArchive {
+  id: string;
+  name: string;
+  memberId: string;
+  createdAt: number;
+  items: ShopItem[];
+}
+
 export interface Source {
   id: string;
   name: string;
@@ -61,7 +69,23 @@ export interface Dinner {
   weekday: number;
   title: string;
   notes?: string;
+  recipeId?: string;
   memberId: string;
+}
+
+export interface FavoriteIngredient {
+  name: string;
+  qty?: string;
+  category: string;
+}
+
+export interface FavoriteRecipe {
+  id: string;
+  title: string;
+  notes?: string;
+  ingredients: FavoriteIngredient[];
+  memberId: string;
+  createdAt: number;
 }
 
 export interface WishItem {
@@ -127,7 +151,9 @@ export interface Group {
   events: CalEvent[];
   items: ShopItem[];
   shopHistory: ShopHistoryEntry[];
+  shopArchives: ShopArchive[];
   dinners: Dinner[];
+  favorites: FavoriteRecipe[];
   wishlists: Wishlist[];
   todos: TodoList[];
   spendings: SpendList[];

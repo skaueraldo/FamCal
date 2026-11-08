@@ -1,3 +1,4 @@
+import { uid } from "./id";
 import type { ShopHistoryEntry, ShopItem } from "../types";
 
 const MAX_HISTORY = 80;
@@ -53,4 +54,62 @@ export function suggestShopItems(
       return b.uses - a.uses || b.lastUsed - a.lastUsed;
     })
     .slice(0, limit);
+}
+
+export function shoppingArchiveName(
+  at: number,
+  locale: string,
+  existing: { createdAt: number }[],
+): string {
+  const date = new Date(at);
+  const day = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(date);
+  const sameDay = existing.some((entry) => {
+    const other = new Date(entry.createdAt);
+    return (
+      other.getFullYear() === date.getFullYear() &&
+      other.getMonth() === date.getMonth() &&
+      other.getDate() === date.getDate()
+    );
+  });
+  if (!sameDay) return day;
+  const time = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(date);
+  return `${day}, ${time}`;
+}
+
+export interface ShopDraft {
+  name: string;
+  qty?: string;
+  category?: string;
+}
+
+export function planShopAdditions(
+  current: ShopItem[],
+  drafts: ShopDraft[],
+  memberId: string,
+  now = Date.now(),
+): { add: ShopItem[]; update: ShopItem[] } {
+  const add: ShopItem[] = [];
+  const update: ShopItem[] = [];
+  const seen = new Set(current.filter((item) => !item.done).map((item) => shopKey(item.name)));
+  for (const draft of drafts) {
+    const name = draft.name.trim();
+    const key = shopKey(name);
+    if (!key) continue;
+    if (seen.has(key)) {
+      const existing = current.find((item) => !item.done && shopKey(item.name) === key);
+      if (existing && !existing.category && draft.category) update.push({ ...existing, category: draft.category });
+      continue;
+    }
+    seen.add(key);
+    add.push({
+      id: uid("shop"),
+      name,
+      qty: draft.qty?.trim() || undefined,
+      category: draft.category,
+      done: false,
+      memberId,
+      createdAt: now,
+    });
+  }
+  return { add, update };
 }

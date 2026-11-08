@@ -8,7 +8,8 @@ import { WebSocketServer } from "ws";
 import { calendarFetchUrls, GOOGLE_ICAL_HELP, looksLikeHtml, looksLikeIcs } from "./calendar-url.js";
 import { fetchSpondActivities } from "./spond.js";
 import { deleteMemberPhoto, readMemberPhoto, saveMemberPhoto } from "./photos.js";
-import { createDurableStore, createFileStore, ensureGroupRoles, groupCreatedAt, isColorTaken, mergeGroups, mergeGroupState, nextFreeMemberColor, parseMemberMenu, sanitizeGroup } from "./store.js";
+import { compareShopPrices } from "./prices.js";
+import { createDurableStore, createFileStore, ensureGroupRoles, groupCreatedAt, isColorTaken, mergeGroups, mergeGroupState, nextFreeMemberColor, parseMemberMenu, sanitizeGroup, sanitizeShopArchive } from "./store.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
@@ -106,10 +107,12 @@ function publicGroup(group) {
   return {
     ...ensureGroupRoles(group),
     dinners: group.dinners || [],
+    favorites: group.favorites || [],
     wishlists: group.wishlists || [],
     todos: group.todos || [],
     spendings: group.spendings || [],
     shopHistory: group.shopHistory || [],
+    shopArchives: group.shopArchives || [],
     sources: (group.sources || []).map((source) => {
       const { password, token, ...safe } = source;
       return safe;
@@ -129,7 +132,9 @@ function emptyGroup(code, name, member) {
     events: [],
     items: [],
     shopHistory: [],
+    shopArchives: [],
     dinners: [],
+    favorites: [],
     wishlists: [],
     todos: [],
     spendings: [],
@@ -199,6 +204,14 @@ app.use(express.json({ limit: "4mb" }));
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
+});
+
+app.post("/api/shop-prices", async (req, res) => {
+  try {
+    res.json(await compareShopPrices(req.body?.items));
+  } catch (error) {
+    res.status(error.status || 502).json({ error: "Could not check prices" });
+  }
 });
 
 app.post("/api/groups", async (req, res) => {
@@ -600,12 +613,32 @@ wss.on("connection", async (ws, req) => {
       case "item:clear":
         group.items = [];
         break;
+      case "shop:archive": {
+        const archive = sanitizeShopArchive(msg.archive);
+        if (!archive) return;
+        if (!group.shopArchives) group.shopArchives = [];
+        upsert(group.shopArchives, archive);
+        group.shopArchives.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        if (group.shopArchives.length > 40) group.shopArchives.length = 40;
+        group.items = [];
+        break;
+      }
+      case "shop:archive:delete":
+        group.shopArchives = (group.shopArchives || []).filter((entry) => entry.id !== msg.id);
+        break;
       case "dinner:upsert":
         if (!group.dinners) group.dinners = [];
         upsert(group.dinners, msg.dinner);
         break;
       case "dinner:delete":
         group.dinners = (group.dinners || []).filter((d) => d.id !== msg.id);
+        break;
+      case "favorite:upsert":
+        if (!group.favorites) group.favorites = [];
+        upsert(group.favorites, msg.favorite);
+        break;
+      case "favorite:delete":
+        group.favorites = (group.favorites || []).filter((recipe) => recipe.id !== msg.id);
         break;
       case "wishlist:upsert":
         if (!group.wishlists) group.wishlists = [];
