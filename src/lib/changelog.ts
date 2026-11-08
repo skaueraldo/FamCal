@@ -10,6 +10,71 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-10-25",
+    items: [
+      {
+        en: "Prices on the shopping list start tucked into a closed section.",
+        no: "Prisene på handlelisten starter i en lukket seksjon.",
+      },
+      {
+        en: "The shopping list also compares this week's offers at Maximat, EuroCash and Nordby Supermarket.",
+        no: "Handlelisten sammenligner også ukens tilbud hos Maximat, EuroCash og Nordby Supermarket.",
+      },
+      {
+        en: "Price comparison sits under the shopping list and loads with the items.",
+        no: "Prissammenligningen ligger under handlelisten og hentes sammen med varene.",
+      },
+      {
+        en: "The shopping list can check prices and show which grocery chain is cheapest.",
+        no: "Handlelisten kan sjekke priser og vise hvilken dagligvarekjede som er billigst.",
+      },
+      {
+        en: "Dinner can suggest a weekly menu, and those ingredients go on the shopping list sorted by food type.",
+        no: "Middag kan foreslå en ukesmeny, og ingrediensene legges på handlelisten sortert etter type matvarer.",
+      },
+      {
+        en: "You can place a single dish from any menu on a day, and save your own dishes under Favorites.",
+        no: "Du kan legge én rett fra en hvilken som helst meny på en dag, og lagre egne retter under Favoritter.",
+      },
+      {
+        en: "The shopping list groups items by food type, so apples land with fruit and vegetables and chicken or beef with meat.",
+        no: "Handlelisten grupperer varer etter type, så epler havner under frukt og grønt og kylling eller biff under kjøtt.",
+      },
+      {
+        en: "You can move a shopping item to another category when it landed in the wrong one.",
+        no: "Du kan flytte en vare til en annen kategori når den har havnet feil.",
+      },
+      {
+        en: "Shopping items can be dragged into another category.",
+        no: "Varer på handlelisten kan dras over i en annen kategori.",
+      },
+      {
+        en: "You can archive a shopping list and copy a previous one onto the current list.",
+        no: "Du kan arkivere en handleliste og kopiere en tidligere liste inn på den nåværende.",
+      },
+      {
+        en: "You can add one dish's ingredients to the shopping list from the menu, Favorites, or the day it is planned.",
+        no: "Du kan legge ingrediensene fra én rett på handlelisten, fra menyen, Favoritter eller dagen den er planlagt.",
+      },
+      {
+        en: "Weekly menu suggestions are hidden on Dinner, and Favorites sits at the top.",
+        no: "Forslag til ukesmenyer er skjult under Middag, og Favoritter ligger øverst.",
+      },
+      {
+        en: "Dish suggestions sit in a collapsed section just under Favorites.",
+        no: "Forslag til retter ligger i en lukket seksjon rett under Favoritter.",
+      },
+      {
+        en: "Favorites and both dinner weeks can be collapsed.",
+        no: "Favoritter og begge middagsukene kan lukkes.",
+      },
+      {
+        en: "The group name field follows the household you have open.",
+        no: "Feltet for gruppenavn følger husstanden du har åpen.",
+      },
+    ],
+  },
+  {
     date: "2026-10-11",
     items: [
       {

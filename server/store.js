@@ -144,7 +144,7 @@ export function mergeGroupState(left, right, options = {}) {
     createdAt: Math.min(groupCreatedAt(left), groupCreatedAt(right)),
     updatedAt: Math.max(Number(left.updatedAt) || 0, Number(right.updatedAt) || 0),
   };
-  for (const key of ["events", "items", "dinners", "wishlists", "todos", "spendings", "sources", "shopHistory"]) {
+  for (const key of ["events", "items", "dinners", "favorites", "wishlists", "todos", "spendings", "sources", "shopHistory", "shopArchives"]) {
     const chosen = asArray(newer[key]);
     const fallback = asArray(older[key]);
     merged[key] = options.preserveRicherCollections && chosen.length === 0 && fallback.length > 0 ? fallback : chosen;
@@ -253,6 +253,57 @@ function sanitizeEvent(event) {
   return next;
 }
 
+const FOOD_CATEGORIES = new Set(["produce", "dairy", "meat", "fish", "bakery", "pantry", "frozen", "other"]);
+
+function sanitizeShopItem(item) {
+  if (!item || !item.id || !String(item.name || "").trim()) return null;
+  const category = FOOD_CATEGORIES.has(item.category) ? item.category : undefined;
+  const qty = item.qty ? String(item.qty).trim().slice(0, 40) : undefined;
+  return {
+    id: String(item.id),
+    name: String(item.name).trim().slice(0, 80),
+    ...(qty ? { qty } : {}),
+    ...(category ? { category } : {}),
+    done: Boolean(item.done),
+    memberId: String(item.memberId || ""),
+    createdAt: Number(item.createdAt) || Date.now(),
+  };
+}
+
+export function sanitizeShopArchive(raw) {
+  if (!raw || !raw.id) return null;
+  const items = asArray(raw.items).map(sanitizeShopItem).filter(Boolean);
+  if (!items.length) return null;
+  const name = String(raw.name || "").trim().slice(0, 80);
+  return {
+    id: String(raw.id),
+    name: name || "List",
+    memberId: String(raw.memberId || ""),
+    createdAt: Number(raw.createdAt) || Date.now(),
+    items,
+  };
+}
+
+function sanitizeFavorite(raw) {
+  if (!raw || !raw.id || !String(raw.title || "").trim()) return null;
+  return {
+    id: String(raw.id),
+    title: String(raw.title).trim().slice(0, 80),
+    notes: raw.notes ? String(raw.notes).trim().slice(0, 200) : undefined,
+    memberId: String(raw.memberId || ""),
+    createdAt: Number(raw.createdAt) || Date.now(),
+    ingredients: asArray(raw.ingredients)
+      .map((item) => {
+        const name = String(item?.name || "").trim().slice(0, 80);
+        if (!name) return null;
+        const category = FOOD_CATEGORIES.has(item.category) ? item.category : "other";
+        const qty = item.qty ? String(item.qty).trim().slice(0, 40) : undefined;
+        return { name, category, ...(qty ? { qty } : {}) };
+      })
+      .filter(Boolean),
+  };
+}
+
 function sanitizeNamedList(list) {
   if (!list || !list.id) return null;
   const folder = String(list.folder || "")
@@ -295,6 +346,7 @@ export function sanitizeGroup(raw) {
     kickedIds: asArray(raw.kickedIds).map(String).filter(Boolean),
     events: asArray(raw.events).map(sanitizeEvent).filter(Boolean),
     items: asArray(raw.items).filter((item) => item && item.id),
+    shopArchives: asArray(raw.shopArchives).map(sanitizeShopArchive).filter(Boolean).slice(0, 40),
     shopHistory: (() => {
       const saved = asArray(raw.shopHistory)
         .filter((entry) => entry && entry.name)
@@ -315,6 +367,7 @@ export function sanitizeGroup(raw) {
         }));
     })(),
     dinners: asArray(raw.dinners).filter((dinner) => dinner && dinner.id),
+    favorites: asArray(raw.favorites).map(sanitizeFavorite).filter(Boolean),
     wishlists: asArray(raw.wishlists).map(sanitizeNamedList).filter(Boolean),
     todos: asArray(raw.todos).map(sanitizeNamedList).filter(Boolean),
     spendings: asArray(raw.spendings).map(sanitizeNamedList).filter(Boolean),

@@ -11,7 +11,7 @@ import {
 import { colorFor, freeMemberColor, uid } from "../lib/id";
 import { normalizeColor } from "../lib/events";
 import { applyHomeScreenBrand } from "../lib/branding";
-import { rememberShopItem, seedShopHistory, shopKey } from "../lib/shop";
+import { planShopAdditions, rememberShopItem, seedShopHistory, shopKey, type ShopDraft } from "../lib/shop";
 import { memberByName, namesMatch, normalizeCode, reconcileProfile } from "../lib/identity";
 import { captureListLink, clearStashedListLink, stripListLinkFromUrl } from "../lib/listShare";
 import { parseIcs, sourceNameFromIcs } from "../lib/ics";
@@ -19,7 +19,7 @@ import { mapKnownError, t as translate, type Lang, type MessageKey, type Theme }
 import { clearGroupCache, clearSession, defaultMenu, emptyNotify, firstVisibleTab, loadAccount, loadGroupCache, loadPrefs, menusEqual, parseMenu, saveAccount, saveGroupCache, savePrefs, tabAllowed, type MenuPrefs, type MenuSection, type NotifyChannel, type NotifyPrefs } from "../lib/storage";
 import { prepareMemberPhoto } from "../lib/photo";
 import { SyncClient, createGroup, deleteMemberPhoto, fetchGroup, fetchIcsUrl, importSpondAccount, refreshSpondAccount, restoreGroup, uploadMemberPhoto } from "../lib/sync";
-import type { Account, CalEvent, Dinner, Group, Membership, Profile, Session, ShopItem, Source, SpendList, Tab, TodoList, Wishlist } from "../types";
+import type { Account, CalEvent, Dinner, FavoriteRecipe, Group, Membership, Profile, Session, ShopArchive, ShopItem, Source, SpendList, Tab, TodoList, Wishlist } from "../types";
 
 interface AppContextValue {
   tab: Tab;
@@ -55,10 +55,16 @@ interface AppContextValue {
   upsertEvent: (event: CalEvent) => void;
   deleteEvent: (id: string) => void;
   upsertItem: (item: ShopItem) => void;
+  addShopItems: (drafts: ShopDraft[]) => { added: number; skipped: number };
   deleteItem: (id: string) => void;
   clearItems: () => void;
+  archiveShoppingList: (name: string) => void;
+  copyShopArchive: (id: string) => { added: number; skipped: number };
+  deleteShopArchive: (id: string) => void;
   upsertDinner: (dinner: Dinner) => void;
   deleteDinner: (id: string) => void;
+  upsertFavorite: (recipe: FavoriteRecipe) => void;
+  deleteFavorite: (id: string) => void;
   upsertWishlist: (list: Wishlist) => void;
   deleteWishlist: (id: string) => void;
   upsertTodoList: (list: TodoList) => void;
@@ -89,7 +95,9 @@ const emptyGroup = (code: string, name: string, profile: Profile): Group => ({
   events: [],
   items: [],
   shopHistory: [],
+  shopArchives: [],
   dinners: [],
+  favorites: [],
   wishlists: [],
   todos: [],
   spendings: [],
@@ -130,10 +138,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       members,
       kickedIds: next.kickedIds ?? [],
       dinners: next.dinners ?? [],
+      favorites: next.favorites ?? [],
       wishlists: next.wishlists ?? [],
       todos: next.todos ?? [],
       spendings: next.spendings ?? [],
       shopHistory: seedShopHistory(next.shopHistory, next.items ?? []),
+      shopArchives: next.shopArchives ?? [],
     });
   }, []);
 
@@ -404,6 +414,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           todos: remote.todos ?? [],
           spendings: remote.spendings ?? [],
           shopHistory: remote.shopHistory ?? [],
+          shopArchives: remote.shopArchives ?? [],
           kickedIds: remote.kickedIds ?? [],
           updatedAt: Date.now(),
         };
@@ -592,12 +603,72 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, { type: "item:upsert", item });
   };
 
+  const addShopItems = (drafts: ShopDraft[]) => {
+    if (!session || !group || !drafts.length) return { added: 0, skipped: drafts.length };
+    const { add, update } = planShopAdditions(group.items, drafts, session.profile.id);
+    if (!add.length && !update.length) return { added: 0, skipped: drafts.length };
+    patch((g) => {
+      const updates = new Map(update.map((item) => [item.id, item]));
+      let items = g.items.map((item) => updates.get(item.id) ?? item);
+      let history = g.shopHistory ?? [];
+      const open = new Set(items.filter((item) => !item.done).map((item) => shopKey(item.name)));
+      for (const item of add) {
+        const key = shopKey(item.name);
+        if (open.has(key)) continue;
+        open.add(key);
+        items = [...items, item];
+        history = rememberShopItem(history, item.name, item.qty);
+      }
+      return { ...g, items, shopHistory: history };
+    });
+    for (const item of [...update, ...add]) sync.current.send({ type: "item:upsert", item });
+    return { added: add.length, skipped: drafts.length - add.length };
+  };
+
   const deleteItem = (id: string) => {
     patch((g) => ({ ...g, items: g.items.filter((i) => i.id !== id) }), { type: "item:delete", id });
   };
 
   const clearItems = () => {
     patch((g) => ({ ...g, items: [] }), { type: "item:clear" });
+  };
+
+  const archiveShoppingList = (name: string) => {
+    if (!session || !group?.items.length) return;
+    const archive: ShopArchive = {
+      id: uid("shoplist"),
+      name: name.trim().slice(0, 80) || "List",
+      memberId: session.profile.id,
+      createdAt: Date.now(),
+      items: group.items.map((item) => ({ ...item })),
+    };
+    patch(
+      (g) => ({
+        ...g,
+        items: [],
+        shopArchives: [archive, ...(g.shopArchives ?? [])].slice(0, 40),
+      }),
+      { type: "shop:archive", archive },
+    );
+  };
+
+  const copyShopArchive = (id: string) => {
+    const archive = (group?.shopArchives ?? []).find((entry) => entry.id === id);
+    if (!archive) return { added: 0, skipped: 0 };
+    return addShopItems(
+      archive.items.map((item) => ({
+        name: item.name,
+        qty: item.qty,
+        category: item.category,
+      })),
+    );
+  };
+
+  const deleteShopArchive = (id: string) => {
+    patch(
+      (g) => ({ ...g, shopArchives: (g.shopArchives ?? []).filter((entry) => entry.id !== id) }),
+      { type: "shop:archive:delete", id },
+    );
   };
 
   const upsertDinner = (dinner: Dinner) => {
@@ -614,6 +685,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteDinner = (id: string) => {
     patch((g) => ({ ...g, dinners: (g.dinners ?? []).filter((d) => d.id !== id) }), { type: "dinner:delete", id });
+  };
+
+  const upsertFavorite = (recipe: FavoriteRecipe) => {
+    patch(
+      (g) => ({
+        ...g,
+        favorites: (g.favorites ?? []).some((item) => item.id === recipe.id)
+          ? (g.favorites ?? []).map((item) => (item.id === recipe.id ? recipe : item))
+          : [...(g.favorites ?? []), recipe],
+      }),
+      { type: "favorite:upsert", favorite: recipe },
+    );
+  };
+
+  const deleteFavorite = (id: string) => {
+    patch((g) => ({ ...g, favorites: (g.favorites ?? []).filter((item) => item.id !== id) }), { type: "favorite:delete", id });
   };
 
   const upsertWishlist = (list: Wishlist) => {
@@ -792,10 +879,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         upsertEvent,
         deleteEvent,
         upsertItem,
+        addShopItems,
         deleteItem,
         clearItems,
+        archiveShoppingList,
+        copyShopArchive,
+        deleteShopArchive,
         upsertDinner,
         deleteDinner,
+        upsertFavorite,
+        deleteFavorite,
         upsertWishlist,
         deleteWishlist,
         upsertTodoList,

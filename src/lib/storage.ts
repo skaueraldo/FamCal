@@ -196,6 +196,7 @@ export function loadGroupCache(code: string): Group | null {
     return {
       ...parsed,
       dinners: parsed.dinners ?? [],
+      favorites: parsed.favorites ?? [],
       wishlists: parsed.wishlists ?? [],
       todos: parsed.todos ?? [],
       spendings: parsed.spendings ?? [],
@@ -203,6 +204,7 @@ export function loadGroupCache(code: string): Group | null {
       events: parsed.events ?? [],
       items: parsed.items ?? [],
       shopHistory: parsed.shopHistory ?? [],
+      shopArchives: parsed.shopArchives ?? [],
       members: parsed.members ?? [],
       kickedIds: parsed.kickedIds ?? [],
     };
