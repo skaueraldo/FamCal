@@ -13,6 +13,10 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-11-25",
     items: [
       {
+        en: "A folder of lists can be shared as one view-only link.",
+        no: "En mappe med lister kan deles som én lenke som bare kan vises.",
+      },
+      {
         en: "A shared list link opens that list for viewing only, without the rest of the group.",
         no: "En delt liste åpnes bare til visning, uten resten av gruppen.",
       },

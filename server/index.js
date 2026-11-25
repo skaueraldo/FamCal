@@ -330,6 +330,13 @@ function memberIdsFromHeader(req) {
     .slice(0, 20);
 }
 
+function folderKey(name) {
+  return String(name || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
 function findListByToken(token) {
   const wanted = String(token || "").trim().toLowerCase();
   if (!SHARE_TOKEN.test(wanted)) return null;
@@ -338,6 +345,26 @@ function findListByToken(token) {
       const list = (group[key] || []).find((entry) => String(entry?.shareToken || "").toLowerCase() === wanted);
       if (list) return { group, tab, list };
     }
+  }
+  return null;
+}
+
+function findFolderByToken(token) {
+  const wanted = String(token || "").trim().toLowerCase();
+  if (!SHARE_TOKEN.test(wanted)) return null;
+  for (const group of Object.values(groups)) {
+    const share = (group.folderShares || []).find((entry) => String(entry?.token || "").toLowerCase() === wanted);
+    if (!share) continue;
+    const bucket = LIST_BUCKETS.find(([tab]) => tab === share.kind);
+    if (!bucket) continue;
+    const folder = String(share.folder || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .slice(0, 40);
+    const lists = (group[bucket[1]] || [])
+      .filter((list) => folderKey(list?.folder) === folderKey(folder) && !(Number(list?.archivedAt) > 0))
+      .sort((left, right) => (Number(right?.createdAt) || 0) - (Number(left?.createdAt) || 0));
+    return { group, tab: share.kind, folder, lists };
   }
   return null;
 }
@@ -401,16 +428,31 @@ function publicSharedList(group, tab, list) {
   };
 }
 
+function publicSharedFolder(group, tab, folder, lists) {
+  return {
+    kind: tab,
+    name: folder,
+    lists: lists.map((list) => {
+      const shared = publicSharedList(group, tab, list);
+      return { name: shared.name, items: shared.items };
+    }),
+  };
+}
+
 function shareResponse(req, found) {
   const ids = new Set(memberIdsFromHeader(req));
   const member = (found.group.members || []).some((entry) => ids.has(entry.id));
+  if (found.folder) {
+    if (member) return { access: "member", code: found.group.code, tab: found.tab, folder: found.folder };
+    return { access: "view", folder: publicSharedFolder(found.group, found.tab, found.folder, found.lists) };
+  }
   if (member) return { access: "member", code: found.group.code, tab: found.tab, listId: found.list.id };
   return { access: "view", list: publicSharedList(found.group, found.tab, found.list) };
 }
 
 app.get("/api/shared/:token", async (req, res) => {
   await hydrate();
-  const found = findListByToken(req.params.token);
+  const found = findListByToken(req.params.token) || findFolderByToken(req.params.token);
   if (!found) return res.status(404).json({ error: "Not found" });
   res.json(shareResponse(req, found));
 });
@@ -699,6 +741,25 @@ wss.on("connection", async (ws, req) => {
         if (!actor || !target || !menu) return;
         if (target.id !== actor.id && !actor.admin) return;
         target.menu = menu;
+        break;
+      }
+      case "folderShares:upsert": {
+        const token = String(msg.share?.token || "")
+          .trim()
+          .toLowerCase();
+        const kind = msg.share?.kind === "todos" || msg.share?.kind === "wishlist" || msg.share?.kind === "spendings" ? msg.share.kind : "";
+        const folder = String(msg.share?.folder || "")
+          .trim()
+          .replace(/\s+/g, " ")
+          .slice(0, 40);
+        if (!SHARE_TOKEN.test(token) || !kind || !folder) return;
+        const share = { token, kind, folder };
+        const current = Array.isArray(group.folderShares) ? group.folderShares : [];
+        const key = `${kind}:${folder.toLowerCase()}`;
+        group.folderShares = [
+          ...current.filter((entry) => `${entry.kind}:${folderKey(entry.folder)}` !== key && String(entry.token || "").toLowerCase() !== token),
+          share,
+        ].slice(0, 80);
         break;
       }
       case "event:upsert":

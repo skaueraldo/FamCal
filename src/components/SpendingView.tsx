@@ -290,6 +290,7 @@ export function SpendingView() {
       ) : (
         <ListBrowser
           lists={lists}
+          shareKind="spendings"
           renderList={renderSpendList}
           renderAdd={(folderName) => (
             <FolderAddForm

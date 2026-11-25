@@ -1,28 +1,37 @@
 import { Check } from "lucide-react";
 import { formatDayShort, formatMoney } from "../lib/dates";
-import type { SharedSpendItem, SharedTodoItem, SharedWishItem } from "../lib/listShare";
+import type { ListShareKind, SharedListSnapshot, SharedSpendItem, SharedTodoItem, SharedWishItem } from "../lib/listShare";
+import type { Lang } from "../lib/i18n";
 import { useApp } from "../state/AppState";
 
 export function SharedListView() {
-  const { t, language, setLanguage, shareGate, sharedList, session, closeSharedList } = useApp();
-  const list = shareGate === "view" ? sharedList : null;
-  const kindLabel = list?.kind === "wishlist" ? t("tabWishlist") : list?.kind === "spendings" ? t("tabSpendings") : t("tabTodos");
+  const { t, language, setLanguage, shareGate, sharedView, session, closeSharedList } = useApp();
+  const view = shareGate === "view" ? sharedView : null;
+  const kind = view?.scope === "folder" ? view.folder.kind : view?.list.kind;
+  const title = view?.scope === "folder" ? view.folder.name : view?.list.name;
+  const kindLabel = kind === "wishlist" ? t("tabWishlist") : kind === "spendings" ? t("tabSpendings") : t("tabTodos");
 
   return (
     <div className="welcome">
       <div className="welcome-card shared-card">
         <div className="brand-mark">F</div>
-        {list ? (
+        {view && title ? (
           <>
             <p className="shared-kind">{kindLabel}</p>
-            <h1>{list.name}</h1>
-            <p className="lede">{t("shareListViewLede")}</p>
-            {list.items.length === 0 ? <p className="empty">{t("emptyTodoList")}</p> : null}
-            {list.kind === "todos" && list.items.length > 0 ? <TodoRows items={list.items as SharedTodoItem[]} someone={t("someone")} /> : null}
-            {list.kind === "wishlist" && list.items.length > 0 ? <WishRows items={list.items as SharedWishItem[]} someone={t("someone")} /> : null}
-            {list.kind === "spendings" && list.items.length > 0 ? (
-              <SpendRows items={list.items as SharedSpendItem[]} someone={t("someone")} language={language} totalLabel={t("spendTotal", { amount: formatMoney(spendTotal(list.items as SharedSpendItem[]), language) })} />
-            ) : null}
+            <h1>{title}</h1>
+            <p className="lede">{view.scope === "folder" ? t("shareFolderViewLede") : t("shareListViewLede")}</p>
+            {view.scope === "list" ? (
+              <SharedListBlock kind={view.list.kind} items={view.list.items} language={language} someone={t("someone")} emptyLabel={t("emptyTodoList")} totalFor={(amount) => t("spendTotal", { amount })} />
+            ) : view.folder.lists.length === 0 ? (
+              <p className="empty">{t("emptyTodoList")}</p>
+            ) : (
+              view.folder.lists.map((list, index) => (
+                <section className="shared-folder-list" key={`${list.name}-${index}`}>
+                  <h2>{list.name}</h2>
+                  <SharedListBlock kind={view.folder.kind} items={list.items} language={language} someone={t("someone")} emptyLabel={t("emptyTodoList")} totalFor={(amount) => t("spendTotal", { amount })} />
+                </section>
+              ))
+            )}
           </>
         ) : (
           <>
@@ -46,6 +55,28 @@ export function SharedListView() {
       </div>
     </div>
   );
+}
+
+function SharedListBlock({
+  kind,
+  items,
+  language,
+  someone,
+  emptyLabel,
+  totalFor,
+}: {
+  kind: ListShareKind;
+  items: SharedListSnapshot["items"];
+  language: Lang;
+  someone: string;
+  emptyLabel: string;
+  totalFor: (amount: string) => string;
+}) {
+  if (items.length === 0) return <p className="empty">{emptyLabel}</p>;
+  if (kind === "todos") return <TodoRows items={items as SharedTodoItem[]} someone={someone} />;
+  if (kind === "wishlist") return <WishRows items={items as SharedWishItem[]} someone={someone} />;
+  const spendItems = items as SharedSpendItem[];
+  return <SpendRows items={spendItems} someone={someone} language={language} totalLabel={totalFor(formatMoney(spendTotal(spendItems), language))} />;
 }
 
 function TodoRows({ items, someone }: { items: SharedTodoItem[]; someone: string }) {

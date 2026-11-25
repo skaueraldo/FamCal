@@ -188,6 +188,21 @@ a,
   grid-template-columns: 8px 1fr auto;
 }
 
+.shared-folder-list {
+  margin-top: 18px;
+}
+
+.shared-folder-list h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.list-folder-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .brand-mark {
   width: 44px;
   height: 44px;

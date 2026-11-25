@@ -196,6 +196,7 @@ export function WishlistView() {
       ) : (
         <ListBrowser
           lists={lists}
+          shareKind="wishlist"
           renderList={renderWishlist}
           renderAdd={(folderName) => (
             <FolderAddForm

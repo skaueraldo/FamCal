@@ -146,11 +146,18 @@ export interface SpendList {
   items: SpendItem[];
 }
 
+export interface FolderShare {
+  token: string;
+  kind: "todos" | "wishlist" | "spendings";
+  folder: string;
+}
+
 export interface Group {
   code: string;
   name: string;
   members: Member[];
   kickedIds?: string[];
+  folderShares?: FolderShare[];
   events: CalEvent[];
   items: ShopItem[];
   shopHistory: ShopHistoryEntry[];

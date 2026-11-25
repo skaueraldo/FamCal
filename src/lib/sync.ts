@@ -1,9 +1,9 @@
-import { sanitizeSharedSnapshot, type ListShareKind, type SharedListSnapshot, type ShareVisit } from "./listShare";
+import { sanitizeSharedView, type ListShareKind, type SharedView, type ShareVisit } from "./listShare";
 import type { Group, Member } from "../types";
 
 export type SharedListResult =
-  | { access: "member"; code: string; tab: ListShareKind; listId: string }
-  | { access: "view"; list: SharedListSnapshot }
+  | { access: "member"; code: string; tab: ListShareKind; listId: string; folder: string }
+  | { access: "view"; view: SharedView }
   | { access: "missing" };
 
 type Listener = (group: Group) => void;
@@ -207,6 +207,7 @@ export async function fetchSharedList(visit: ShareVisit, memberIds: string[]): P
     code?: string;
     tab?: string;
     listId?: string;
+    folder?: string;
     list?: unknown;
   } | null;
   if (body?.access === "member") {
@@ -216,11 +217,15 @@ export async function fetchSharedList(visit: ShareVisit, memberIds: string[]): P
       .replace(/[^A-Z0-9]/g, "")
       .slice(0, 6);
     const listId = String(body.listId || "");
-    if (tab && code && listId) return { access: "member", code, tab, listId };
+    const folder = String(body.folder || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .slice(0, 40);
+    if (tab && code && (listId || folder)) return { access: "member", code, tab, listId, folder };
   }
   if (body?.access === "view") {
-    const list = sanitizeSharedSnapshot(body.list);
-    if (list) return { access: "view", list };
+    const view = sanitizeSharedView(body);
+    if (view) return { access: "view", view };
   }
   return { access: "missing" };
 }

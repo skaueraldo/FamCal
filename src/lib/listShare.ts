@@ -36,6 +36,14 @@ export interface SharedListSnapshot {
   items: SharedTodoItem[] | SharedWishItem[] | SharedSpendItem[];
 }
 
+export interface SharedFolderSnapshot {
+  kind: ListShareKind;
+  name: string;
+  lists: { name: string; items: SharedListSnapshot["items"] }[];
+}
+
+export type SharedView = { scope: "list"; list: SharedListSnapshot } | { scope: "folder"; folder: SharedFolderSnapshot };
+
 export type ShareVisit =
   | { kind: "token"; token: string }
   | { kind: "legacy"; code: string; listId: string; tab: ListShareKind };
@@ -158,21 +166,52 @@ export function sanitizeSharedSnapshot(raw: unknown): SharedListSnapshot | null 
   return { kind, name, items };
 }
 
-export function rememberSharedSnapshot(list: SharedListSnapshot) {
+function shareKind(raw: unknown): ListShareKind | null {
+  return raw === "todos" || raw === "wishlist" || raw === "spendings" ? raw : null;
+}
+
+export function sanitizeSharedFolder(raw: unknown): SharedFolderSnapshot | null {
+  if (!raw || typeof raw !== "object") return null;
+  const body = raw as { kind?: unknown; name?: unknown; lists?: unknown };
+  const kind = shareKind(body.kind);
+  const name = clip(body.name, 40);
+  if (!kind || !name || !Array.isArray(body.lists)) return null;
+  const lists = body.lists
+    .map((entry) => {
+      const row = entry as { name?: unknown; items?: unknown };
+      const list = sanitizeSharedSnapshot({ kind, name: row.name, items: row.items });
+      return list ? { name: list.name, items: list.items } : null;
+    })
+    .filter((entry): entry is { name: string; items: SharedListSnapshot["items"] } => Boolean(entry));
+  return { kind, name, lists };
+}
+
+export function sanitizeSharedView(raw: unknown): SharedView | null {
+  if (!raw || typeof raw !== "object") return null;
+  const body = raw as { scope?: unknown; list?: unknown; folder?: unknown };
+  if (body.scope === "folder" || body.folder) {
+    const folder = sanitizeSharedFolder(body.scope === "folder" ? body.folder : body.folder);
+    return folder ? { scope: "folder", folder } : null;
+  }
+  const list = sanitizeSharedSnapshot(body.scope === "list" ? body.list : body.list || body);
+  return list ? { scope: "list", list } : null;
+}
+
+export function rememberSharedSnapshot(view: SharedView) {
   try {
-    sessionStorage.setItem(SNAPSHOT_KEY, JSON.stringify(list));
+    sessionStorage.setItem(SNAPSHOT_KEY, JSON.stringify(view));
   } catch {
     /* ignore */
   }
 }
 
-export function readRememberedShare(search = typeof location !== "undefined" ? location.search : ""): SharedListSnapshot | null {
+export function readRememberedShare(search = typeof location !== "undefined" ? location.search : ""): SharedView | null {
   try {
     const params = new URLSearchParams(search);
     if (params.get("shared") !== "1" || params.get("share") || params.get("code") || params.get("list")) return null;
     const raw = sessionStorage.getItem(SNAPSHOT_KEY);
     if (!raw) return null;
-    return sanitizeSharedSnapshot(JSON.parse(raw));
+    return sanitizeSharedView(JSON.parse(raw));
   } catch {
     return null;
   }

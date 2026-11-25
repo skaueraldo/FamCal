@@ -1,7 +1,9 @@
 import { Archive, ArchiveRestore, Plus } from "lucide-react";
 import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import type { ListShareKind } from "../lib/listShare";
 import { partitionClusters, listFolder, splitArchived } from "../lib/listFolders";
 import { useApp } from "../state/AppState";
+import { FolderShareButton } from "./ListShare";
 
 export type ListPlace = "folder" | "standalone" | "archived";
 
@@ -165,6 +167,7 @@ function NamedFolder({
   startOpen,
   forceOpen,
   foldLists,
+  shareKind,
   add,
   children,
 }: {
@@ -173,6 +176,7 @@ function NamedFolder({
   startOpen: boolean;
   forceOpen?: boolean;
   foldLists?: boolean;
+  shareKind?: ListShareKind;
   add?: ReactNode;
   children: ReactNode;
 }) {
@@ -197,6 +201,7 @@ function NamedFolder({
         <summary className="list-folder-title">
           <span>{name}</span>
           <span className="list-folder-actions" onClick={(event) => event.preventDefault()}>
+            {shareKind ? <FolderShareButton kind={shareKind} folder={name} /> : null}
             {foldLists ? (
               <>
                 <button className="list-folder-toggle" type="button" onClick={setAll(true)}>
@@ -227,10 +232,12 @@ export function ListBrowser<T extends { id: string; folder?: string; createdAt: 
   lists,
   renderList,
   renderAdd,
+  shareKind,
 }: {
   lists: T[];
   renderList: (list: T, place: ListPlace) => ReactNode;
   renderAdd?: (folder: string) => ReactNode;
+  shareKind?: ListShareKind;
 }) {
   const { t, openListId } = useApp();
   const { active, archived } = splitArchived(lists);
@@ -251,6 +258,7 @@ export function ListBrowser<T extends { id: string; folder?: string; createdAt: 
               startOpen
               forceOpen={focusIn(cluster.lists)}
               foldLists
+              shareKind={shareKind}
               add={renderAdd?.(cluster.folder)}
             >
               {cluster.lists.map((list) => renderList(list, "folder"))}

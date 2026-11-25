@@ -13,6 +13,7 @@ import { normalizeColor } from "../lib/events";
 import { applyHomeScreenBrand } from "../lib/branding";
 import { planShopAdditions, rememberShopItem, seedShopHistory, shopKey, type ShopDraft } from "../lib/shop";
 import { memberByName, namesMatch, normalizeCode, reconcileProfile } from "../lib/identity";
+import { listFolder } from "../lib/listFolders";
 import {
   clearRememberedShare,
   createShareToken,
@@ -23,7 +24,7 @@ import {
   stripShareSecretsFromUrl,
   listShareUrl,
   type ListShareKind,
-  type SharedListSnapshot,
+  type SharedView,
 } from "../lib/listShare";
 import { parseIcs, sourceNameFromIcs } from "../lib/ics";
 import { mapKnownError, t as translate, type Lang, type MessageKey, type Theme } from "../lib/i18n";
@@ -51,9 +52,10 @@ interface AppContextValue {
   openListId: string | null;
   clearOpenListId: () => void;
   shareGate: "off" | "loading" | "view" | "missing";
-  sharedList: SharedListSnapshot | null;
+  sharedView: SharedView | null;
   closeSharedList: () => void;
   ensureListShareLink: (listId: string) => string;
+  ensureFolderShareLink: (kind: ListShareKind, folderName: string) => string;
   status: "connecting" | "live" | "offline";
   error: string | null;
   startGroup: (name: string, groupName: string) => Promise<void>;
@@ -448,18 +450,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setError(null);
   };
 
-  const initialShare = (): { gate: "off" | "loading" | "view"; list: SharedListSnapshot | null } => {
-    if (typeof location === "undefined") return { gate: "off", list: null };
+  const initialShare = (): { gate: "off" | "loading" | "view"; view: SharedView | null } => {
+    if (typeof location === "undefined") return { gate: "off", view: null };
     const visit = readShareVisit();
-    if (visit) return { gate: "loading", list: null };
+    if (visit) return { gate: "loading", view: null };
     const remembered = readRememberedShare();
-    if (remembered) return { gate: "view", list: remembered };
-    return { gate: "off", list: null };
+    if (remembered) return { gate: "view", view: remembered };
+    return { gate: "off", view: null };
   };
   const startingShare = initialShare();
   const [shareGate, setShareGate] = useState<"off" | "loading" | "view" | "missing">(startingShare.gate);
-  const [sharedList, setSharedList] = useState<SharedListSnapshot | null>(startingShare.list);
-  const [pendingList, setPendingList] = useState<{ code: string; listId: string; tab: ListShareKind } | null>(null);
+  const [sharedView, setSharedView] = useState<SharedView | null>(startingShare.view);
+  const [pendingList, setPendingList] = useState<{ code: string; listId: string; tab: ListShareKind; folder: string } | null>(null);
   const shareStarted = useRef(false);
   const openedListLink = useRef(false);
 
@@ -473,17 +475,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (result.access === "member") {
         const known = accountRef.current?.memberships.some((item) => item.groupCode === result.code);
         if (known) {
-          setPendingList({ code: result.code, listId: result.listId, tab: result.tab });
+          setPendingList({ code: result.code, listId: result.listId, tab: result.tab, folder: result.folder });
           setShareGate("off");
           stripShareSecretsFromUrl("clear");
           return;
         }
       }
       if (result.access === "view") {
-        setSharedList(result.list);
+        setSharedView(result.view);
         setShareGate("view");
         if (visit.kind === "legacy") {
-          rememberSharedSnapshot(result.list);
+          rememberSharedSnapshot(result.view);
           stripShareSecretsFromUrl("flag");
         }
         return;
@@ -508,13 +510,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const section = pendingList.tab as MenuSection;
     if (!menu[section]) setMenuSection(section, true);
     setTab(pendingList.tab, true);
-    setOpenListId(pendingList.listId);
+    if (pendingList.listId) setOpenListId(pendingList.listId);
     setPendingList(null);
   }, [pendingList, session, group, memberships]);
 
   const closeSharedList = () => {
     clearRememberedShare();
-    setSharedList(null);
+    setSharedView(null);
     setShareGate("off");
     stripShareSecretsFromUrl("clear");
   };
@@ -840,6 +842,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return listShareUrl(token);
   };
 
+  const ensureFolderShareLink = (kind: ListShareKind, folderName: string) => {
+    const current = group;
+    const folder = listFolder(folderName);
+    if (!current || !folder) return "";
+    const existing = (current.folderShares ?? []).find(
+      (entry) => entry.kind === kind && listFolder(entry.folder).toLowerCase() === folder.toLowerCase(),
+    );
+    const token = parseShareToken(existing?.token) || createShareToken();
+    if (!existing || existing.token !== token || existing.folder !== folder) {
+      const share = { token, kind, folder };
+      patch(
+        (g) => ({
+          ...g,
+          folderShares: [
+            ...(g.folderShares ?? []).filter(
+              (entry) => !(entry.kind === kind && listFolder(entry.folder).toLowerCase() === folder.toLowerCase()) && entry.token !== token,
+            ),
+            share,
+          ],
+        }),
+        { type: "folderShares:upsert", share },
+      );
+    }
+    return listShareUrl(token);
+  };
+
   const mergeImported = (source: Source, events: CalEvent[]) => {
     patch(
       (g) => {
@@ -953,9 +981,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         openListId,
         clearOpenListId: () => setOpenListId(null),
         shareGate,
-        sharedList,
+        sharedView,
         closeSharedList,
         ensureListShareLink,
+        ensureFolderShareLink,
         status,
         error,
         startGroup,

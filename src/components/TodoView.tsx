@@ -197,6 +197,7 @@ export function TodoView() {
       ) : (
         <ListBrowser
           lists={lists}
+          shareKind="todos"
           renderList={renderTodoList}
           renderAdd={(folderName) => (
             <FolderAddForm
