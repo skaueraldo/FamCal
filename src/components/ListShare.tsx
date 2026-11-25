@@ -1,24 +1,23 @@
 import { Share2 } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { listAppLink } from "../lib/listShare";
+import type { ListShareKind } from "../lib/listShare";
 import { useApp } from "../state/AppState";
 
 export function ListShareButton({
   listId,
   listName,
-  groupCode,
   className = "btn secondary",
 }: {
   listId: string;
   listName: string;
-  groupCode: string;
   className?: string;
 }) {
-  const { t } = useApp();
+  const { t, ensureListShareLink } = useApp();
   const [copied, setCopied] = useState(false);
 
   const share = async () => {
-    const url = listAppLink(groupCode, listId);
+    const url = ensureListShareLink(listId);
+    if (!url) return;
     const title = t("shareListTitle", { name: listName });
     const text = t("shareListText", { name: listName });
     try {
@@ -41,6 +40,40 @@ export function ListShareButton({
   return (
     <button className={className} type="button" onClick={() => void share()}>
       <Share2 size={16} />
+      {copied ? t("shareListCopied") : t("shareList")}
+    </button>
+  );
+}
+
+export function FolderShareButton({ kind, folder }: { kind: ListShareKind; folder: string }) {
+  const { t, ensureFolderShareLink } = useApp();
+  const [copied, setCopied] = useState(false);
+
+  const share = async () => {
+    const url = ensureFolderShareLink(kind, folder);
+    if (!url) return;
+    const title = t("shareFolderTitle", { name: folder });
+    const text = t("shareFolderText", { name: folder });
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title, text, url });
+        return;
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  return (
+    <button className="list-folder-toggle list-folder-share" type="button" onClick={() => void share()}>
+      <Share2 size={14} />
       {copied ? t("shareListCopied") : t("shareList")}
     </button>
   );

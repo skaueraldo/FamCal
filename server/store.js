@@ -311,12 +311,39 @@ function sanitizeNamedList(list) {
     .replace(/\s+/g, " ")
     .slice(0, 40);
   const archivedAt = Number(list.archivedAt);
+  const shareToken = String(list.shareToken || "")
+    .trim()
+    .toLowerCase();
   const next = { ...list };
   if (folder) next.folder = folder;
   else delete next.folder;
   if (Number.isFinite(archivedAt) && archivedAt > 0) next.archivedAt = archivedAt;
   else delete next.archivedAt;
+  if (/^[a-f0-9]{32,64}$/.test(shareToken)) next.shareToken = shareToken;
+  else delete next.shareToken;
   return next;
+}
+
+function sanitizeFolderShares(raw) {
+  const seen = new Set();
+  return asArray(raw)
+    .map((entry) => {
+      const token = String(entry?.token || "")
+        .trim()
+        .toLowerCase();
+      const kind = entry?.kind === "todos" || entry?.kind === "wishlist" || entry?.kind === "spendings" ? entry.kind : "";
+      const folder = String(entry?.folder || "")
+        .trim()
+        .replace(/\s+/g, " ")
+        .slice(0, 40);
+      if (!/^[a-f0-9]{32,64}$/.test(token) || !kind || !folder) return null;
+      const key = `${kind}:${folder.toLowerCase()}`;
+      if (seen.has(key)) return null;
+      seen.add(key);
+      return { token, kind, folder };
+    })
+    .filter(Boolean)
+    .slice(0, 80);
 }
 
 export function sanitizeGroup(raw) {
@@ -371,6 +398,7 @@ export function sanitizeGroup(raw) {
     wishlists: asArray(raw.wishlists).map(sanitizeNamedList).filter(Boolean),
     todos: asArray(raw.todos).map(sanitizeNamedList).filter(Boolean),
     spendings: asArray(raw.spendings).map(sanitizeNamedList).filter(Boolean),
+    folderShares: sanitizeFolderShares(raw.folderShares),
     sources: asArray(raw.sources)
       .filter((source) => source && source.id)
       .map(({ password, token, ...source }) => source),

@@ -102,6 +102,7 @@ export interface Wishlist {
   createdAt: number;
   folder?: string;
   archivedAt?: number;
+  shareToken?: string;
   items: WishItem[];
 }
 
@@ -120,6 +121,7 @@ export interface TodoList {
   createdAt: number;
   folder?: string;
   archivedAt?: number;
+  shareToken?: string;
   items: TodoItem[];
 }
 
@@ -140,7 +142,14 @@ export interface SpendList {
   createdAt: number;
   folder?: string;
   archivedAt?: number;
+  shareToken?: string;
   items: SpendItem[];
+}
+
+export interface FolderShare {
+  token: string;
+  kind: "todos" | "wishlist" | "spendings";
+  folder: string;
 }
 
 export interface Group {
@@ -148,6 +157,7 @@ export interface Group {
   name: string;
   members: Member[];
   kickedIds?: string[];
+  folderShares?: FolderShare[];
   events: CalEvent[];
   items: ShopItem[];
   shopHistory: ShopHistoryEntry[];

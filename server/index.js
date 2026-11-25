@@ -315,6 +315,155 @@ app.delete("/api/groups/:code/members/:id/photo", async (req, res) => {
   res.json({ ok: true });
 });
 
+const SHARE_TOKEN = /^[a-f0-9]{32,64}$/i;
+const LIST_BUCKETS = [
+  ["todos", "todos"],
+  ["wishlist", "wishlists"],
+  ["spendings", "spendings"],
+];
+
+function memberIdsFromHeader(req) {
+  return String(req.get("x-famcal-members") || "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter((id) => id && id.length <= 40)
+    .slice(0, 20);
+}
+
+function folderKey(name) {
+  return String(name || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function findListByToken(token) {
+  const wanted = String(token || "").trim().toLowerCase();
+  if (!SHARE_TOKEN.test(wanted)) return null;
+  for (const group of Object.values(groups)) {
+    for (const [tab, key] of LIST_BUCKETS) {
+      const list = (group[key] || []).find((entry) => String(entry?.shareToken || "").toLowerCase() === wanted);
+      if (list) return { group, tab, list };
+    }
+  }
+  return null;
+}
+
+function findFolderByToken(token) {
+  const wanted = String(token || "").trim().toLowerCase();
+  if (!SHARE_TOKEN.test(wanted)) return null;
+  for (const group of Object.values(groups)) {
+    const share = (group.folderShares || []).find((entry) => String(entry?.token || "").toLowerCase() === wanted);
+    if (!share) continue;
+    const bucket = LIST_BUCKETS.find(([tab]) => tab === share.kind);
+    if (!bucket) continue;
+    const folder = String(share.folder || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .slice(0, 40);
+    const lists = (group[bucket[1]] || [])
+      .filter((list) => folderKey(list?.folder) === folderKey(folder) && !(Number(list?.archivedAt) > 0))
+      .sort((left, right) => (Number(right?.createdAt) || 0) - (Number(left?.createdAt) || 0));
+    return { group, tab: share.kind, folder, lists };
+  }
+  return null;
+}
+
+function findListByCode(code, listId) {
+  const group = groups[normalizeGroupCode(code)];
+  const id = String(listId || "");
+  if (!group || !id) return null;
+  for (const [tab, key] of LIST_BUCKETS) {
+    const list = (group[key] || []).find((entry) => entry?.id === id);
+    if (list) return { group, tab, list };
+  }
+  return null;
+}
+
+function displayName(group, memberId, fallback) {
+  const named = String(fallback || "").trim();
+  if (named) return named.slice(0, 60);
+  const member = (group.members || []).find((entry) => entry.id === memberId);
+  return String(member?.name || "").trim().slice(0, 60);
+}
+
+function publicSharedList(group, tab, list) {
+  const name = String(list.name || "").trim().slice(0, 80) || "List";
+  if (tab === "todos") {
+    return {
+      kind: "todos",
+      name,
+      items: (list.items || [])
+        .map((item) => ({
+          name: String(item?.name || "").trim().slice(0, 80),
+          done: Boolean(item?.done),
+          addedBy: displayName(group, item?.memberId, ""),
+        }))
+        .filter((item) => item.name),
+    };
+  }
+  if (tab === "wishlist") {
+    return {
+      kind: "wishlist",
+      name,
+      items: (list.items || [])
+        .map((item) => ({
+          name: String(item?.name || "").trim().slice(0, 80),
+          addedBy: displayName(group, item?.memberId, ""),
+        }))
+        .filter((item) => item.name),
+    };
+  }
+  return {
+    kind: "spendings",
+    name,
+    items: (list.items || [])
+      .map((item) => ({
+        name: String(item?.name || "").trim().slice(0, 80),
+        cost: Number.isFinite(Number(item?.cost)) ? Number(item.cost) : 0,
+        date: /^\d{4}-\d{2}-\d{2}$/.test(String(item?.date || "")) ? String(item.date) : "",
+        addedBy: displayName(group, item?.memberId, item?.spenderName),
+      }))
+      .filter((item) => item.name),
+  };
+}
+
+function publicSharedFolder(group, tab, folder, lists) {
+  return {
+    kind: tab,
+    name: folder,
+    lists: lists.map((list) => {
+      const shared = publicSharedList(group, tab, list);
+      return { name: shared.name, items: shared.items };
+    }),
+  };
+}
+
+function shareResponse(req, found) {
+  const ids = new Set(memberIdsFromHeader(req));
+  const member = (found.group.members || []).some((entry) => ids.has(entry.id));
+  if (found.folder) {
+    if (member) return { access: "member", code: found.group.code, tab: found.tab, folder: found.folder };
+    return { access: "view", folder: publicSharedFolder(found.group, found.tab, found.folder, found.lists) };
+  }
+  if (member) return { access: "member", code: found.group.code, tab: found.tab, listId: found.list.id };
+  return { access: "view", list: publicSharedList(found.group, found.tab, found.list) };
+}
+
+app.get("/api/shared/:token", async (req, res) => {
+  await hydrate();
+  const found = findListByToken(req.params.token) || findFolderByToken(req.params.token);
+  if (!found) return res.status(404).json({ error: "Not found" });
+  res.json(shareResponse(req, found));
+});
+
+app.get("/api/shared-list", async (req, res) => {
+  await hydrate();
+  const found = findListByCode(req.query.code, req.query.list);
+  if (!found) return res.status(404).json({ error: "Not found" });
+  res.json(shareResponse(req, found));
+});
+
 app.get("/api/groups/:code", async (req, res) => {
   await hydrate();
   const code = normalizeGroupCode(req.params.code);
@@ -592,6 +741,25 @@ wss.on("connection", async (ws, req) => {
         if (!actor || !target || !menu) return;
         if (target.id !== actor.id && !actor.admin) return;
         target.menu = menu;
+        break;
+      }
+      case "folderShares:upsert": {
+        const token = String(msg.share?.token || "")
+          .trim()
+          .toLowerCase();
+        const kind = msg.share?.kind === "todos" || msg.share?.kind === "wishlist" || msg.share?.kind === "spendings" ? msg.share.kind : "";
+        const folder = String(msg.share?.folder || "")
+          .trim()
+          .replace(/\s+/g, " ")
+          .slice(0, 40);
+        if (!SHARE_TOKEN.test(token) || !kind || !folder) return;
+        const share = { token, kind, folder };
+        const current = Array.isArray(group.folderShares) ? group.folderShares : [];
+        const key = `${kind}:${folder.toLowerCase()}`;
+        group.folderShares = [
+          ...current.filter((entry) => `${entry.kind}:${folderKey(entry.folder)}` !== key && String(entry.token || "").toLowerCase() !== token),
+          share,
+        ].slice(0, 80);
         break;
       }
       case "event:upsert":

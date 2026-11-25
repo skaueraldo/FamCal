@@ -6,7 +6,9 @@ export function normalizeCode(code: string): string {
 
 export function inviteCodeFromSearch(search = typeof location !== "undefined" ? location.search : ""): string {
   try {
-    return normalizeCode(new URLSearchParams(search).get("code") || "");
+    const params = new URLSearchParams(search);
+    if (params.get("list") || params.get("share") || params.get("shared")) return "";
+    return normalizeCode(params.get("code") || "");
   } catch {
     return "";
   }
