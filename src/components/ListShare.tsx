@@ -1,24 +1,22 @@
 import { Share2 } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { listAppLink } from "../lib/listShare";
 import { useApp } from "../state/AppState";
 
 export function ListShareButton({
   listId,
   listName,
-  groupCode,
   className = "btn secondary",
 }: {
   listId: string;
   listName: string;
-  groupCode: string;
   className?: string;
 }) {
-  const { t } = useApp();
+  const { t, ensureListShareLink } = useApp();
   const [copied, setCopied] = useState(false);
 
   const share = async () => {
-    const url = listAppLink(groupCode, listId);
+    const url = ensureListShareLink(listId);
+    if (!url) return;
     const title = t("shareListTitle", { name: listName });
     const text = t("shareListText", { name: listName });
     try {

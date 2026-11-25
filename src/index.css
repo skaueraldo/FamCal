@@ -155,6 +155,39 @@ a,
   padding: 28px 24px 22px;
 }
 
+.welcome-card.shared-card {
+  width: min(640px, 100%);
+}
+
+.shared-kind {
+  margin: 0 0 4px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.shared-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.check.static {
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.wish-item.readonly {
+  grid-template-columns: 8px 1fr;
+}
+
+.spend-item.readonly {
+  grid-template-columns: 8px 1fr auto;
+}
+
 .brand-mark {
   width: 44px;
   height: 44px;

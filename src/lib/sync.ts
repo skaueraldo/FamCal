@@ -1,4 +1,10 @@
+import { sanitizeSharedSnapshot, type ListShareKind, type SharedListSnapshot, type ShareVisit } from "./listShare";
 import type { Group, Member } from "../types";
+
+export type SharedListResult =
+  | { access: "member"; code: string; tab: ListShareKind; listId: string }
+  | { access: "view"; list: SharedListSnapshot }
+  | { access: "missing" };
 
 type Listener = (group: Group) => void;
 type StatusListener = (status: "connecting" | "live" | "offline") => void;
@@ -184,6 +190,39 @@ export async function fetchGroup(code: string): Promise<Group> {
   const res = await fetch(`/api/groups/${encodeURIComponent(normalized)}`);
   if (!res.ok) throw new Error("That group code was not found");
   return res.json() as Promise<Group>;
+}
+
+export async function fetchSharedList(visit: ShareVisit, memberIds: string[]): Promise<SharedListResult> {
+  const headers: Record<string, string> = {};
+  const ids = memberIds.map((id) => id.trim()).filter((id) => id && id.length <= 40).slice(0, 20);
+  if (ids.length) headers["x-famcal-members"] = ids.join(",");
+  const url =
+    visit.kind === "token"
+      ? `/api/shared/${encodeURIComponent(visit.token)}`
+      : `/api/shared-list?code=${encodeURIComponent(visit.code)}&list=${encodeURIComponent(visit.listId)}`;
+  const res = await fetch(url, { headers });
+  if (!res.ok) return { access: "missing" };
+  const body = (await res.json().catch(() => null)) as {
+    access?: string;
+    code?: string;
+    tab?: string;
+    listId?: string;
+    list?: unknown;
+  } | null;
+  if (body?.access === "member") {
+    const tab = body.tab === "todos" || body.tab === "wishlist" || body.tab === "spendings" ? body.tab : null;
+    const code = String(body.code || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 6);
+    const listId = String(body.listId || "");
+    if (tab && code && listId) return { access: "member", code, tab, listId };
+  }
+  if (body?.access === "view") {
+    const list = sanitizeSharedSnapshot(body.list);
+    if (list) return { access: "view", list };
+  }
+  return { access: "missing" };
 }
 
 export async function restoreGroup(group: Group): Promise<Group> {

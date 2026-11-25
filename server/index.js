@@ -315,6 +315,113 @@ app.delete("/api/groups/:code/members/:id/photo", async (req, res) => {
   res.json({ ok: true });
 });
 
+const SHARE_TOKEN = /^[a-f0-9]{32,64}$/i;
+const LIST_BUCKETS = [
+  ["todos", "todos"],
+  ["wishlist", "wishlists"],
+  ["spendings", "spendings"],
+];
+
+function memberIdsFromHeader(req) {
+  return String(req.get("x-famcal-members") || "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter((id) => id && id.length <= 40)
+    .slice(0, 20);
+}
+
+function findListByToken(token) {
+  const wanted = String(token || "").trim().toLowerCase();
+  if (!SHARE_TOKEN.test(wanted)) return null;
+  for (const group of Object.values(groups)) {
+    for (const [tab, key] of LIST_BUCKETS) {
+      const list = (group[key] || []).find((entry) => String(entry?.shareToken || "").toLowerCase() === wanted);
+      if (list) return { group, tab, list };
+    }
+  }
+  return null;
+}
+
+function findListByCode(code, listId) {
+  const group = groups[normalizeGroupCode(code)];
+  const id = String(listId || "");
+  if (!group || !id) return null;
+  for (const [tab, key] of LIST_BUCKETS) {
+    const list = (group[key] || []).find((entry) => entry?.id === id);
+    if (list) return { group, tab, list };
+  }
+  return null;
+}
+
+function displayName(group, memberId, fallback) {
+  const named = String(fallback || "").trim();
+  if (named) return named.slice(0, 60);
+  const member = (group.members || []).find((entry) => entry.id === memberId);
+  return String(member?.name || "").trim().slice(0, 60);
+}
+
+function publicSharedList(group, tab, list) {
+  const name = String(list.name || "").trim().slice(0, 80) || "List";
+  if (tab === "todos") {
+    return {
+      kind: "todos",
+      name,
+      items: (list.items || [])
+        .map((item) => ({
+          name: String(item?.name || "").trim().slice(0, 80),
+          done: Boolean(item?.done),
+          addedBy: displayName(group, item?.memberId, ""),
+        }))
+        .filter((item) => item.name),
+    };
+  }
+  if (tab === "wishlist") {
+    return {
+      kind: "wishlist",
+      name,
+      items: (list.items || [])
+        .map((item) => ({
+          name: String(item?.name || "").trim().slice(0, 80),
+          addedBy: displayName(group, item?.memberId, ""),
+        }))
+        .filter((item) => item.name),
+    };
+  }
+  return {
+    kind: "spendings",
+    name,
+    items: (list.items || [])
+      .map((item) => ({
+        name: String(item?.name || "").trim().slice(0, 80),
+        cost: Number.isFinite(Number(item?.cost)) ? Number(item.cost) : 0,
+        date: /^\d{4}-\d{2}-\d{2}$/.test(String(item?.date || "")) ? String(item.date) : "",
+        addedBy: displayName(group, item?.memberId, item?.spenderName),
+      }))
+      .filter((item) => item.name),
+  };
+}
+
+function shareResponse(req, found) {
+  const ids = new Set(memberIdsFromHeader(req));
+  const member = (found.group.members || []).some((entry) => ids.has(entry.id));
+  if (member) return { access: "member", code: found.group.code, tab: found.tab, listId: found.list.id };
+  return { access: "view", list: publicSharedList(found.group, found.tab, found.list) };
+}
+
+app.get("/api/shared/:token", async (req, res) => {
+  await hydrate();
+  const found = findListByToken(req.params.token);
+  if (!found) return res.status(404).json({ error: "Not found" });
+  res.json(shareResponse(req, found));
+});
+
+app.get("/api/shared-list", async (req, res) => {
+  await hydrate();
+  const found = findListByCode(req.query.code, req.query.list);
+  if (!found) return res.status(404).json({ error: "Not found" });
+  res.json(shareResponse(req, found));
+});
+
 app.get("/api/groups/:code", async (req, res) => {
   await hydrate();
   const code = normalizeGroupCode(req.params.code);

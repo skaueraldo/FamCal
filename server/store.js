@@ -311,11 +311,16 @@ function sanitizeNamedList(list) {
     .replace(/\s+/g, " ")
     .slice(0, 40);
   const archivedAt = Number(list.archivedAt);
+  const shareToken = String(list.shareToken || "")
+    .trim()
+    .toLowerCase();
   const next = { ...list };
   if (folder) next.folder = folder;
   else delete next.folder;
   if (Number.isFinite(archivedAt) && archivedAt > 0) next.archivedAt = archivedAt;
   else delete next.archivedAt;
+  if (/^[a-f0-9]{32,64}$/.test(shareToken)) next.shareToken = shareToken;
+  else delete next.shareToken;
   return next;
 }
 

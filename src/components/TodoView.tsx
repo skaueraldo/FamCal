@@ -83,7 +83,7 @@ export function TodoView() {
         >
           <div className="list-row-tools">
             {group?.code ? (
-              <ListShareButton className="btn secondary small" groupCode={group.code} listId={list.id} listName={list.name} />
+              <ListShareButton className="btn secondary small" listId={list.id} listName={list.name} />
             ) : null}
             <ListFolderField
               value={listFolder(list.folder)}

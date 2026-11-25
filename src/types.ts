@@ -102,6 +102,7 @@ export interface Wishlist {
   createdAt: number;
   folder?: string;
   archivedAt?: number;
+  shareToken?: string;
   items: WishItem[];
 }
 
@@ -120,6 +121,7 @@ export interface TodoList {
   createdAt: number;
   folder?: string;
   archivedAt?: number;
+  shareToken?: string;
   items: TodoItem[];
 }
 
@@ -140,6 +142,7 @@ export interface SpendList {
   createdAt: number;
   folder?: string;
   archivedAt?: number;
+  shareToken?: string;
   items: SpendItem[];
 }
 

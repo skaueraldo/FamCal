@@ -10,6 +10,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-11-25",
+    items: [
+      {
+        en: "A shared list link opens that list for viewing only, without the rest of the group.",
+        no: "En delt liste åpnes bare til visning, uten resten av gruppen.",
+      },
+    ],
+  },
+  {
     date: "2026-10-25",
     items: [
       {
